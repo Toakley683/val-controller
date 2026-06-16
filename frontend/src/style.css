@@ -1,0 +1,24 @@
+
+
+#app {
+    background-color: rgba(0, 0, 0);
+}
+
+body {
+    overflow: hidden;
+    width: fit-content;
+    height: fit-content;
+    margin: 0;
+    border: 0;
+    color: white;
+    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+    "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
+}
+
+@font-face {
+  font-family: 'DMSans';
+  src: url('/assets/fonts/DMSans.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+}
