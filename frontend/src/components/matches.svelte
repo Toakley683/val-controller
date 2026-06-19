@@ -3,7 +3,7 @@
     import { onMount } from 'svelte';
     import { EventsOn, EventsOff } from '../../wailsjs/runtime';
     import { valorantapi } from '../../wailsjs/go/models';
-    import { GetMatch, SelectRandomAgent } from '../../wailsjs/go/main/App';
+    import { ExitCoreGame, ExitPregame, GetMatch, SelectRandomAgent } from '../../wailsjs/go/main/App';
 
     import { 
         sizeAnimation,
@@ -153,7 +153,7 @@
             sizeAnimation(
                 size.x,
                 size.y,
-                600,
+                550,
                 41 + 32
             )
             return
@@ -182,20 +182,21 @@
 
             if (MatchData.IsPregame) {
 
+            
                 sizeAnimation(
                     size.x,
                     size.y,
                     600,
-                    40 + 28 + 30 + ( ( 47 + GapAdd ) * maxPlayerPerSize )
+                    40 + 20 + 16 + ( ( 47 + GapAdd ) * maxPlayerPerSize )
                 )
-
+                
             } else {
 
                 sizeAnimation(
                     size.x,
                     size.y,
                     600,
-                    40 + 30 + ( ( 47 + GapAdd ) * maxPlayerPerSize )
+                    40 + 10 + ( ( 47 + GapAdd ) * maxPlayerPerSize )
                 )
 
             }
@@ -244,15 +245,13 @@
 
             {/if}
 
-
-            {#if MatchData?.IsPregame}
-
-                {#if MatchData?.AllyTeam?.Players?.length > 0}
-
+            {#if MatchData?.AllyTeam?.Players?.length > 0}
+            
+                {#if MatchData?.IsPregame }
                     <bar>
+                        <button on:click={ () => { ExitPregame() } }>Exit Pregame</button>
                         <button on:click={ () => { SelectRandomAgent() } }>Random Agent</button>
                     </bar>
-
                 {/if}
 
             {/if}
@@ -477,6 +476,27 @@
                 </card>
 
                 <div class="vertical-devider"></div>
+                
+                {#if selectedPlayer.MatchesAgo > 0 }
+
+                    <card>
+                        <top>
+                            Last Seen
+                            <div class="horizonal-devider"></div>
+                        </top>
+                        <bottom>
+                            {#if selectedPlayer.MatchesAgo > 1 }
+                                {selectedPlayer.MatchesAgo} Matches ago
+                            {/if}
+                            {#if selectedPlayer.MatchesAgo == 1 }
+                                {selectedPlayer.MatchesAgo} Match ago
+                            {/if}
+                        </bottom>
+                    </card>
+
+                    <div class="vertical-devider"></div>
+
+                {/if}
 
                 <card>
                     <top>Level</top>
@@ -631,36 +651,6 @@
 
     }
 
-    .container-text {
-
-        all: unset;
-        text-align: left;
-
-        border: none;
-        background-color: transparent;
-
-        color: white;
-        
-        height: 1.5rem;
-
-        padding-left: 1rem;
-        padding-right: 1rem;
-
-        flex: 1;
-            
-        font-family: 'DMSans', sans-serif;
-        font-weight: 300;
-        font-size: 0.8rem;
-
-        text-align: center;
-        line-height: 1.5rem;
-
-        border-radius: 4px;
-        
-        background-color: hsl(0, 0%, 10%);
-        box-shadow: 0 2px 0.5rem rgba(0, 0, 0, 0.3);
-    }
-
     button {
         border: none;
         background-color: transparent;
@@ -743,7 +733,7 @@
 
         gap: 15px;
 
-        padding: 15px;
+        padding: 5px;
 
         width: 100%;
         height: 100%;

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"sync"
 	"time"
 
@@ -150,7 +151,14 @@ func (store *JSONStore) writeJSON(data interface{}) error {
 }
 
 var loadoutStore *JSONStore
+var lastSeenStore *JSONStore
 var OwnedAgentLookup = map[string]valorantapi.AgentID{}
+
+type LastSeenObject struct {
+	Subject    string `json:"Subject"`
+	LastSeen   int64  `json:"LastSeen"`
+	MatchesAgo int64  `json:"MatchesAgo"`
+}
 
 // startup is called when the app starts. The context is saved
 // so we can call the runtime methods
@@ -172,6 +180,12 @@ func (a *App) startup(ctx context.Context) {
 	loadoutStore, err = newDataStore(appDataPath, "loadoutStore.json")
 	if err != nil {
 		runtime.LogError(ctx, "Failed to make data store: "+err.Error())
+		return
+	}
+
+	lastSeenStore, err = newDataStore(appDataPath, "lastSeenStore.json")
+	if err != nil {
+		runtime.LogError(ctx, "Failed to make lastSeen store: "+err.Error())
 		return
 	}
 
@@ -264,10 +278,19 @@ type SavedLoadout struct {
 	LoadoutData valorantapi.ValorantLocalLoadout `json:"LoadoutData"`
 	NameLookup  map[string]string                `json:"NameLookup"`
 }
+type UpdateLoadoutObj struct {
+	Loadouts       map[string]SavedLoadout
+	CurrentLoadout valorantapi.ValorantLocalLoadout
+}
 
-func (a *App) GetLoadouts() error {
+func (a *App) GetLoadouts() UpdateLoadoutObj {
 
-	return a.sendLoadout()
+	err := a.sendLoadout()
+	if err != nil {
+		fmt.Println("Error getting loadout,", err)
+	}
+
+	return UpdateLoadoutObj{}
 
 }
 
@@ -279,7 +302,22 @@ func (a *App) sendLoadout() error {
 		return err
 	}
 
-	runtime.EventsEmit(a.ctx, "on_loadout_update", writeData)
+	localPlayer, err := a.valorantAPIContext.GetLocalPlayerContext()
+	if err != nil {
+		return err
+	}
+
+	currentLoadout, err := a.valorantAPIContext.GetAccountLoadout(localPlayer)
+	if err != nil {
+		return err
+	}
+
+	UploadData := UpdateLoadoutObj{
+		Loadouts:       writeData,
+		CurrentLoadout: *currentLoadout,
+	}
+
+	runtime.EventsEmit(a.ctx, "on_loadout_update", UploadData)
 
 	return nil
 
@@ -331,10 +369,7 @@ func (a *App) SaveCurrentLoadout(name string) error {
 
 	loadoutStore.writeJSON(writeData)
 
-	err = a.GetLoadouts()
-	if err != nil {
-		return err
-	}
+	a.GetLoadouts()
 
 	return nil
 
@@ -354,10 +389,7 @@ func (a *App) DeleteSavedLoadout(name string) error {
 
 	loadoutStore.writeJSON(writeData)
 
-	err = a.GetLoadouts()
-	if err != nil {
-		return err
-	}
+	a.GetLoadouts()
 
 	return nil
 
@@ -394,22 +426,92 @@ func (a *App) LoadSavedLoadout(name string) error {
 		return err
 	}
 
+	a.GetLoadouts()
+
 	return nil
 
 }
 
-type MatchData struct {
-	IsLoaded   bool   `json:"isLoaded"`
-	IsInMatch  bool   `json:"isInMatch"`
-	IsGameOpen bool   `json:"gameOpen"`
-	TokenTest  string `json:"tokenTest"`
-}
+var lastMatchID = ""
+var lastMatchData *valorantapi.MatchData
 
 func (a *App) GetMatch() *valorantapi.MatchData {
 
 	data := a.updateMatchData()
 
 	return data
+
+}
+
+var RemoveOldEntryLimit = 204800
+
+// Only keep up to X amount of entries in the lastSeenStore
+
+func onMatchEnd(lastMatchData *valorantapi.MatchData) {
+
+	writeData := map[string]LastSeenObject{}
+	err := lastSeenStore.readJSON(&writeData)
+	if err == nil {
+
+		for _, v := range append(lastMatchData.AllyTeam.Players, lastMatchData.EnemyTeam.Players...) {
+
+			writeData[v.Subject] = LastSeenObject{
+				Subject:    v.Subject,
+				LastSeen:   time.Now().Unix(),
+				MatchesAgo: 0,
+			}
+
+		}
+
+		for _, v := range writeData {
+
+			writeData[v.Subject] = LastSeenObject{
+				Subject:    v.Subject,
+				LastSeen:   v.LastSeen,
+				MatchesAgo: v.MatchesAgo + 1,
+			}
+
+		}
+
+		if len(writeData) > RemoveOldEntryLimit {
+
+			objects := make([]LastSeenObject, 0, len(writeData))
+			for _, obj := range writeData {
+				objects = append(objects, obj)
+			}
+
+			sort.Slice(objects, func(i, j int) bool {
+				return objects[i].LastSeen > objects[j].LastSeen
+			})
+
+			for index, obj := range objects {
+
+				if index >= RemoveOldEntryLimit {
+
+					delete(writeData, obj.Subject)
+
+				}
+			}
+
+		}
+
+		err = lastSeenStore.writeJSON(writeData)
+
+		if err != nil {
+
+			fmt.Println("Errors with saving lastSeenStore:", err)
+
+		}
+
+	} else {
+		fmt.Println(err)
+	}
+
+}
+
+func onMatchStart(matchData *valorantapi.MatchData) {
+
+	fmt.Println("Match has started")
 
 }
 
@@ -423,6 +525,34 @@ func (a *App) updateMatchData() *valorantapi.MatchData {
 		if err != nil {
 			fmt.Println(err)
 			return nil
+		}
+
+		if data.MatchID != lastMatchID {
+
+			if lastMatchID == "" {
+				lastMatchData = data
+				onMatchStart(data)
+			} else {
+				if data.MatchID == "" {
+					onMatchEnd(lastMatchData)
+				}
+			}
+
+			lastMatchID = data.MatchID
+
+		}
+
+		readData := map[string]LastSeenObject{}
+		err = lastSeenStore.readJSON(&readData)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		for i, v := range data.AllyTeam.Players {
+			data.AllyTeam.Players[i].MatchesAgo = readData[v.Subject].MatchesAgo
+		}
+		for i, v := range data.EnemyTeam.Players {
+			data.EnemyTeam.Players[i].MatchesAgo = readData[v.Subject].MatchesAgo
 		}
 
 		fmt.Println("Sent")
@@ -439,6 +569,54 @@ func (a *App) updateMatchData() *valorantapi.MatchData {
 
 func randRange(min, max int) int {
 	return rand.Intn(max-min) + min
+}
+
+func (a *App) ExitCoreGame() error {
+
+	LocalPlayer, err := a.valorantAPIContext.GetLocalPlayerContext()
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	CurrentMatch, err := a.valorantAPIContext.GetCurrentGamePlayer(LocalPlayer)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	if CurrentMatch.PregameMatchID == "" && CurrentMatch.GameMatchID != "" {
+
+		a.valorantAPIContext.CoregameQuit(CurrentMatch.GameMatchID, LocalPlayer)
+
+	}
+
+	return nil
+
+}
+
+func (a *App) ExitPregame() error {
+
+	LocalPlayer, err := a.valorantAPIContext.GetLocalPlayerContext()
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	CurrentMatch, err := a.valorantAPIContext.GetCurrentGamePlayer(LocalPlayer)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	if CurrentMatch.PregameMatchID != "" && CurrentMatch.GameMatchID == "" {
+
+		a.valorantAPIContext.PregameQuit(CurrentMatch.PregameMatchID)
+
+	}
+
+	return nil
+
 }
 
 func (a *App) SelectRandomAgent() error {

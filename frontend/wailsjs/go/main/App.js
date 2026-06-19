@@ -10,6 +10,14 @@ export function DeleteSavedLoadout(arg1) {
   return window['go']['main']['App']['DeleteSavedLoadout'](arg1);
 }
 
+export function ExitCoreGame() {
+  return window['go']['main']['App']['ExitCoreGame']();
+}
+
+export function ExitPregame() {
+  return window['go']['main']['App']['ExitPregame']();
+}
+
 export function GetLoadout() {
   return window['go']['main']['App']['GetLoadout']();
 }

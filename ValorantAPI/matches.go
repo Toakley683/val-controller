@@ -289,6 +289,7 @@ type valorantMatchTeamPlayer struct {
 	CurrentRank             string
 	CurrentRankDisplayIcon  string
 	LastMatchPartyID        string
+	MatchesAgo              int64
 	PregamePlayerState      string         `json:"PregamePlayerState"`
 	CompetitiveTier         int            `json:"CompetitiveTier"`
 	PlayerIdentity          PlayerIdentity `json:"PlayerIdentity"`
@@ -1159,5 +1160,90 @@ func (context ValorantAPIContext) SelectAgent(CurrentPregameID string, agentID A
 	}
 
 	return nil, nil
+
+}
+
+/* [[ - Exit Pregame or Coregame - ]] */
+func (context ValorantAPIContext) FullQuit() error {
+
+	LocalPlayer, err := context.GetLocalPlayerContext()
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	CurrentMatch, err := context.GetCurrentGamePlayer(LocalPlayer)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	if CurrentMatch.PregameMatchID != "" && CurrentMatch.GameMatchID == "" {
+
+		context.PregameQuit(CurrentMatch.PregameMatchID)
+
+	} else {
+
+		context.CoregameQuit(CurrentMatch.GameMatchID, LocalPlayer)
+
+	}
+
+	return nil
+
+}
+
+/* [[ - Exit Pregame - ]] */
+func (context ValorantAPIContext) PregameQuit(PregameID string) error {
+
+	APICall := newAPICall()
+
+	APICall.URL = "https://glz-" + context.localRegionData.Region + "-1." + context.localRegionData.Shard + ".a.pvp.net/pregame/v1/matches/" + PregameID + "/quit"
+
+	APICall.Body = nil
+	APICall.Method = "POST"
+
+	var err error
+
+	err = APICall.SetRequest()
+	if err != nil {
+		return err
+	}
+
+	APICall.SetBearerAuth(context)
+
+	err = APICall.Call()
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+/* [[ - Exit Coregame - ]] */
+func (context ValorantAPIContext) CoregameQuit(CoregameID string, playerContext *ValorantPlayerContext) error {
+
+	APICall := newAPICall()
+
+	APICall.URL = "https://glz-" + context.localRegionData.Region + "-1." + context.localRegionData.Shard + ".a.pvp.net/core-game/v1/players/" + playerContext.UUID + "/disassociate/" + CoregameID
+
+	APICall.Body = nil
+	APICall.Method = "POST"
+
+	var err error
+
+	err = APICall.SetRequest()
+	if err != nil {
+		return err
+	}
+
+	APICall.SetBearerAuth(context)
+
+	err = APICall.Call()
+	if err != nil {
+		return err
+	}
+
+	return nil
 
 }

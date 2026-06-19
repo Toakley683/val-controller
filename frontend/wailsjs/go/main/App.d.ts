@@ -7,9 +7,13 @@ export function CloseWindow():Promise<void>;
 
 export function DeleteSavedLoadout(arg1:string):Promise<void>;
 
+export function ExitCoreGame():Promise<void>;
+
+export function ExitPregame():Promise<void>;
+
 export function GetLoadout():Promise<main.SavedLoadout>;
 
-export function GetLoadouts():Promise<void>;
+export function GetLoadouts():Promise<main.UpdateLoadoutObj>;
 
 export function GetMatch():Promise<valorantapi.MatchData>;
 

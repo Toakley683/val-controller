@@ -97,24 +97,59 @@
         LoadSavedLoadout(name)
 
     }
+
+    function loadoutEqual(loadout1: valorantapi.ValorantLocalLoadout, loadout2: valorantapi.ValorantLocalLoadout ): boolean {
+
+        if ( !loadout1 || !loadout2 ) {
+            // Loadouts are not valid
+            return false;
+        }
+
+        let GunsEqual = true
+
+        for (let index = 0; index < loadout1.Guns.length; index++) {
+            const element1 = loadout1.Guns[index];
+            const element2 = loadout2.Guns[index];
+            if (element1.ChromaID != element2.ChromaID) {
+                GunsEqual = false
+            }
+        }
+
+        let ExpressionsEqual = true
+
+        for (let index = 0; index < loadout1.ActiveExpressions.length; index++) {
+            const element1 = loadout1.ActiveExpressions[index];
+            const element2 = loadout2.ActiveExpressions[index];
+            if (element1.AssetID != element2.AssetID) {
+                ExpressionsEqual = false
+            }
+        }
+
+        return GunsEqual && ExpressionsEqual
+        
+    }
     
     type LoadoutItem = { key: string; value: main.SavedLoadout };
     var loadoutList: LoadoutItem[] = [];
+    var CurrentLoadout: valorantapi.ValorantLocalLoadout
 
     onMount( () => {
 
         resize()
 
-        EventsOn( "on_loadout_update", ( data: Record<string, main.SavedLoadout> ) => {
+        EventsOn( "on_loadout_update", ( data: main.UpdateLoadoutObj ) => {
 
-            loadoutList = Object.entries(data).map( ([key, value]) => {
+            CurrentLoadout = data.CurrentLoadout
+
+            loadoutList = Object.entries(data.Loadouts).map( ([key, value]) => {
+
                 return {
                     key: key,
                     value: value
                 }
             })
 
-            console.log(loadoutList)
+            console.log(data)
 
         })
 
@@ -151,7 +186,8 @@
             
             <div class="loadout-list">
                 {#each loadoutList as loadout (loadout.key) }
-                    <div class="loadout-item" 
+                    <div 
+                        class="loadout-item {loadoutEqual( loadout.value.LoadoutData, CurrentLoadout) ? "selected" : ""}" 
                         on:click={ () => { showLoadout(true, loadout) }}
                         on:keyup={ () => { showLoadout( true, loadout )}}
                     >
@@ -302,6 +338,10 @@
         gap: 2rem;
         
         width: 100%;
+    }
+
+    .selected {
+        background-color: rgb(12, 68, 12) !important;
     }
 
     .player-card {
