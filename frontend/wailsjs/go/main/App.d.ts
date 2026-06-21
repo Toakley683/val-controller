@@ -3,6 +3,8 @@
 import {main} from '../models';
 import {valorantapi} from '../models';
 
+export function AddWeaponsToBeRandomized(arg1:Record<string, boolean>):Promise<void>;
+
 export function CloseWindow():Promise<void>;
 
 export function DeleteSavedLoadout(arg1:string):Promise<void>;
@@ -17,7 +19,7 @@ export function GetLoadouts():Promise<main.UpdateLoadoutObj>;
 
 export function GetMatch():Promise<valorantapi.MatchData>;
 
-export function LoadSavedLoadout(arg1:string):Promise<void>;
+export function LoadSavedLoadout(arg1:string,arg2:boolean):Promise<void>;
 
 export function MinimizeWindow():Promise<void>;
 

@@ -6,7 +6,7 @@ import (
 	"io"
 )
 
-type OwnedItemsAgents struct {
+type OwnedItems struct {
 	ItemTypeID   string `json:"ItemTypeID"`
 	Entitlements []struct {
 		TypeID string      `json:"TypeID"`
@@ -54,7 +54,7 @@ func (context ValorantAPIContext) GetOwnedAgentData() (map[string]AgentID, error
 		return nil, err
 	}
 
-	Response := &OwnedItemsAgents{}
+	Response := &OwnedItems{}
 
 	err = json.Unmarshal(FullBody, &Response)
 	if err != nil {

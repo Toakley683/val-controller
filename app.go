@@ -24,6 +24,11 @@ type ClientUpdate struct {
 	TokenTest  string `json:"tokenTest"`
 }
 
+type SettingsStoreData struct {
+	IsRandomized          bool            `json:"isRandomized"`
+	RandomSelectedWeapons map[string]bool `json:"randomSelected"`
+}
+
 // App struct
 type App struct {
 	ctx                context.Context
@@ -150,9 +155,12 @@ func (store *JSONStore) writeJSON(data interface{}) error {
 
 }
 
+var settingsStore *JSONStore
 var loadoutStore *JSONStore
 var lastSeenStore *JSONStore
 var OwnedAgentLookup = map[string]valorantapi.AgentID{}
+var OwnedWeaponLookup map[string][]valorantapi.ValorantLocalLoadoutGuns
+var AllWeapons = &valorantapi.ValorantAllWeapons{}
 
 type LastSeenObject struct {
 	Subject    string `json:"Subject"`
@@ -189,6 +197,12 @@ func (a *App) startup(ctx context.Context) {
 		return
 	}
 
+	settingsStore, err = newDataStore(appDataPath, "settings.json")
+	if err != nil {
+		runtime.LogError(ctx, "Failed to make data store: "+err.Error())
+		return
+	}
+
 	go func() {
 
 		for {
@@ -218,6 +232,76 @@ func (a *App) startup(ctx context.Context) {
 			a.updateClient(a.clientUpdate)
 
 			OwnedAgentLookup, err = a.valorantAPIContext.GetOwnedAgentData()
+			OwnedWeaponChromas, err := a.valorantAPIContext.GetOwnedWeaponChromas()
+			OwnedWeaponSkins, err := a.valorantAPIContext.GetOwnedWeaponSkins()
+
+			if OwnedWeaponLookup == nil {
+				AllWeapons, err = a.valorantAPIContext.GetAllWeapons()
+
+				OwnedWeaponLookup = map[string][]valorantapi.ValorantLocalLoadoutGuns{}
+
+				for _, weapon := range AllWeapons.Data {
+					if OwnedWeaponLookup[weapon.UUID] == nil {
+						OwnedWeaponLookup[weapon.UUID] = []valorantapi.ValorantLocalLoadoutGuns{}
+					}
+
+					for _, skin := range weapon.Skins {
+
+						allChroma := []valorantapi.ValorantLocalLoadoutGuns{}
+
+						highestLevel := 0
+
+						for i, skinLevels := range skin.Levels {
+
+							if OwnedWeaponSkins[skinLevels.UUID] != nil {
+
+								if highestLevel < i+1 {
+									highestLevel = i + 1
+								}
+
+							}
+
+						}
+
+						if highestLevel > 0 {
+
+							ownedChromas := 0
+
+							for _, chroma := range skin.Chromas {
+
+								if OwnedWeaponChromas[chroma.UUID] != nil {
+
+									// Need to add max skin VARIANTS to list of available to use
+
+									allChroma = append(allChroma, valorantapi.ValorantLocalLoadoutGuns{
+										ID:          valorantapi.WeaponID(weapon.UUID),
+										SkinID:      valorantapi.WeaponSkinID(skin.UUID),
+										SkinLevelID: valorantapi.WeaponSkinLevelID(skin.Levels[highestLevel-1].UUID),
+										ChromaID:    valorantapi.WeaponChromaID(chroma.UUID),
+									})
+
+									ownedChromas++
+
+								}
+
+							}
+
+							// Need to add max skin level to list of available to use
+
+							allChroma = append(allChroma, valorantapi.ValorantLocalLoadoutGuns{
+								ID:          valorantapi.WeaponID(weapon.UUID),
+								SkinID:      valorantapi.WeaponSkinID(skin.UUID),
+								SkinLevelID: valorantapi.WeaponSkinLevelID(skin.Levels[highestLevel-1].UUID),
+								ChromaID:    valorantapi.WeaponChromaID(skin.Chromas[0].UUID),
+							})
+
+						}
+
+						OwnedWeaponLookup[weapon.UUID] = append(OwnedWeaponLookup[weapon.UUID], allChroma...)
+					}
+				}
+
+			}
 
 			time.Sleep(1 * time.Second)
 
@@ -274,13 +358,73 @@ func (a *App) GetLoadout() *SavedLoadout {
 
 }
 
+var RandomLoadout SavedLoadout = SavedLoadout{
+	LoadoutData: valorantapi.ValorantLocalLoadout{
+		Guns: []valorantapi.ValorantLocalLoadoutGuns{
+			{ID: "63e6c2b6-4a8e-869c-3d4c-e38355226584", SkinID: "f454efd1-49cb-372f-7096-d394df615308", ChromaID: "2f93861d-4b2f-2175-af0c-3ba0c736e257"},
+			{ID: "55d8a0f4-4274-ca67-fe2c-06ab45efdf58", SkinID: "5305d9c4-4f46-fbf4-9e9a-dea772c263b5", ChromaID: "b33de820-4061-8b85-31ce-808f1a2c58f5"},
+			{ID: "9c82e19d-4575-0200-1a81-3eacf00cf872", SkinID: "27f21d97-4c4b-bd1c-1f08-31830ab0be84", ChromaID: "19629ae1-4996-ae98-7742-24a240d41f99"},
+			{ID: "ae3de142-4d85-2547-dd26-4e90bed35cf7", SkinID: "724a7f42-4315-eccf-0e76-77bdd3ec2e09", ChromaID: "bf35f404-4a14-6953-ced2-5bafd21639a0"},
+			{ID: "ee8e8d15-496b-07ac-e5f6-8fae5d4c7b1a", SkinID: "337cb216-4a6e-d85d-88c2-f29ab317784c", ChromaID: "52221ba2-4e4c-ec76-8c81-3483506d5242"},
+			{ID: "ec845bf4-4f79-ddda-a3da-0db3774b2794", SkinID: "acd26127-48ff-8b9e-7ba6-b989af8a4b24", ChromaID: "b71ae8d6-44bb-aa4c-0d2a-dc9ed9e66410"},
+			{ID: "910be174-449b-c412-ab22-d0873436b21b", SkinID: "70c97fb2-4d79-d4bb-5173-a1888cd4bfd9", ChromaID: "3d8ffcfe-4786-0180-42d7-e1be18dd1cab"},
+			{ID: "44d4e95c-4157-0037-81b2-17841bf2e8e3", SkinID: "f06657f3-48b6-6314-7235-a9a2749df5b9", ChromaID: "dc99ed5a-4d75-87a0-c921-75963ea3c1e1"},
+			{ID: "29a0cfab-485b-f5d5-779a-b59f85e204a8", SkinID: "24aee897-4cdc-b0fd-e596-1ba90fa6d1b2", ChromaID: "4b2d5b4f-4955-4208-286c-abadec250cdd"},
+			{ID: "1baa85b4-4c70-1284-64bb-6481dfc3bb4e", SkinID: "1c63b43b-43c4-04e4-01c9-7aa1bffa5ac1", ChromaID: "947a28b6-4e0f-61fb-e795-bc9a5e7b7129"},
+			{ID: "e336c6b8-418d-9340-d77f-7a9e4cfe0702", SkinID: "1ef6ba68-4dbe-30c7-6bc8-93a6c6f13f04", ChromaID: "5a59bd61-48a9-af61-c00f-4aa21deca9a8"},
+			{ID: "42da8ccc-40d5-affc-beec-15aa47b42eda", SkinID: "48ad078a-4dae-2b85-a945-f4b6d1efecbb", ChromaID: "95608504-4c8b-1408-1612-0f8200421c49"},
+			{ID: "a03b24d3-4319-996d-0f8c-94bbfba1dfc7", SkinID: "d1f2920f-469a-3431-ad96-96afbd0017f2", ChromaID: "4914f50d-49f9-6424-ca80-9486c45a138d"},
+			{ID: "4ade7faa-4cf1-8376-95ef-39884480959b", SkinID: "3bf1e8e0-47e8-f27a-6054-929575f41a54", ChromaID: "0f934388-418a-a9e7-42a7-21b27402e46c"},
+			{ID: "c4883e50-4494-202c-3ec3-6b8a9284f00b", SkinID: "fd44b2d5-49ee-77ab-fa56-588f3ac0c268", ChromaID: "1afec971-4170-f29b-1c94-07a0eff270ab"},
+			{ID: "462080d1-4035-2937-7c09-27aa2a5c27a7", SkinID: "f01d1307-4299-42f5-2c5e-7dab7e69ab19", ChromaID: "a9aaccca-4cdc-02ea-1d7e-89bbacecc0e2"},
+			{ID: "f7e1b454-4ad4-1063-ec0a-159e56b58941", SkinID: "940fb417-4a9c-3004-41f5-3e8f1f4178b2", ChromaID: "31bb2115-4c62-d37c-43c4-11b8fee7f212"},
+			{ID: "2f59173c-4bed-b6c3-2191-dea9b58be9c7", SkinID: "12cc9ed2-4430-d2fe-3064-f7a19b1ba7c7", ChromaID: "cac83e5c-47a1-3519-5420-1db1fdbc4892"},
+			{ID: "5f0aaf7a-4289-3998-d5ff-eb9a5cf7ef5c", SkinID: "740b9572-44b1-57bf-767e-6aa01811f94d", ChromaID: "66c8d241-4f7c-6652-3aaa-51bafffbd493"},
+			{ID: "410b2e0b-4ceb-1321-1727-20858f7f3477", SkinID: "b576b9f1-407d-310a-6009-6287fb6829bc", ChromaID: "ff308f94-427d-e6d3-8fcb-258f5d4c2c29"},
+		},
+		Sprays: []valorantapi.ValorantLocalExpression{
+			{TypeID: "03a572de-4234-31ed-d344-ababa488f981"},
+			{TypeID: "d5f120f8-ff8c-4aac-92ea-f2b5acbe9475"},
+			{TypeID: "d5f120f8-ff8c-4aac-92ea-f2b5acbe9475"},
+			{TypeID: "d5f120f8-ff8c-4aac-92ea-f2b5acbe9475"},
+		},
+		Identity: valorantapi.ValorantLocalLoadoutIdentity{
+			PlayerCardID: "9fb348bc-41a0-91ad-8a3e-818035c4e561",
+		},
+	},
+	NameLookup: map[string]string{
+		"12cc9ed2-4430-d2fe-3064-f7a19b1ba7c7": "Random Melee",
+		"1c63b43b-43c4-04e4-01c9-7aa1bffa5ac1": "Random Ghost",
+		"1ef6ba68-4dbe-30c7-6bc8-93a6c6f13f04": "Random Sheriff",
+		"24aee897-4cdc-b0fd-e596-1ba90fa6d1b2": "Random Classic",
+		"27f21d97-4c4b-bd1c-1f08-31830ab0be84": "Random Vandal",
+		"337cb216-4a6e-d85d-88c2-f29ab317784c": "Random Phantom",
+		"3bf1e8e0-47e8-f27a-6054-929575f41a54": "Random Guardian",
+		"48ad078a-4dae-2b85-a945-f4b6d1efecbb": "Random Shorty",
+		"5305d9c4-4f46-fbf4-9e9a-dea772c263b5": "Random Ares",
+		"70c97fb2-4d79-d4bb-5173-a1888cd4bfd9": "Random Bucky",
+		"724a7f42-4315-eccf-0e76-77bdd3ec2e09": "Random Bulldog",
+		"740b9572-44b1-57bf-767e-6aa01811f94d": "Random Outlaw",
+		"940fb417-4a9c-3004-41f5-3e8f1f4178b2": "Random Stinger",
+		"acd26127-48ff-8b9e-7ba6-b989af8a4b24": "Random Judge",
+		"b576b9f1-407d-310a-6009-6287fb6829bc": "Random Bandit",
+		"d1f2920f-469a-3431-ad96-96afbd0017f2": "Random Operator",
+		"f01d1307-4299-42f5-2c5e-7dab7e69ab19": "Random Spectre",
+		"f06657f3-48b6-6314-7235-a9a2749df5b9": "Random Frenzy",
+		"f454efd1-49cb-372f-7096-d394df615308": "Random Odin",
+		"fd44b2d5-49ee-77ab-fa56-588f3ac0c268": "Random Marshal",
+	},
+}
+
 type SavedLoadout struct {
 	LoadoutData valorantapi.ValorantLocalLoadout `json:"LoadoutData"`
 	NameLookup  map[string]string                `json:"NameLookup"`
 }
 type UpdateLoadoutObj struct {
-	Loadouts       map[string]SavedLoadout
-	CurrentLoadout valorantapi.ValorantLocalLoadout
+	Loadouts              map[string]SavedLoadout
+	CurrentLoadout        valorantapi.ValorantLocalLoadout
+	RandomWeaponsSelected map[string]bool
+	IsRandomSelected      bool
 }
 
 func (a *App) GetLoadouts() UpdateLoadoutObj {
@@ -312,12 +456,48 @@ func (a *App) sendLoadout() error {
 		return err
 	}
 
+	writeData["Random"] = RandomLoadout
+
+	storeData := SettingsStoreData{}
+	err = settingsStore.readJSON(&storeData)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	if storeData.RandomSelectedWeapons == nil {
+		storeData.RandomSelectedWeapons = map[string]bool{}
+	}
+
 	UploadData := UpdateLoadoutObj{
-		Loadouts:       writeData,
-		CurrentLoadout: *currentLoadout,
+		Loadouts:              writeData,
+		CurrentLoadout:        *currentLoadout,
+		RandomWeaponsSelected: storeData.RandomSelectedWeapons,
+		IsRandomSelected:      storeData.IsRandomized,
 	}
 
 	runtime.EventsEmit(a.ctx, "on_loadout_update", UploadData)
+
+	return nil
+
+}
+
+func (a *App) AddWeaponsToBeRandomized(val map[string]bool) error {
+
+	storeData := SettingsStoreData{}
+	err := settingsStore.readJSON(&storeData)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	storeData.RandomSelectedWeapons = val
+
+	err = settingsStore.writeJSON(storeData)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
 
 	return nil
 
@@ -395,23 +575,87 @@ func (a *App) DeleteSavedLoadout(name string) error {
 
 }
 
-func (a *App) LoadSavedLoadout(name string) error {
+func (a *App) randomizeLoadout() error {
+
+	storeData := SettingsStoreData{}
+	err := settingsStore.readJSON(&storeData)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	if storeData.IsRandomized == false {
+		fmt.Println("Test")
+		return nil
+	}
+
+	localPlayer, err := a.valorantAPIContext.GetLocalPlayerContext()
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	currentLoadout, err := a.valorantAPIContext.GetAccountLoadout(localPlayer)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	currentLoadoutLookup := map[valorantapi.WeaponID]int{}
+
+	for index, v := range currentLoadout.Guns {
+
+		currentLoadoutLookup[v.ID] = index
+
+	}
+
+	for uuid, isRandomized := range storeData.RandomSelectedWeapons {
+
+		if isRandomized {
+
+			index := currentLoadoutLookup[valorantapi.WeaponID(uuid)]
+
+			randomWeapon := OwnedWeaponLookup[uuid]
+			randomIndex := rand.Intn(len(randomWeapon) - 1)
+			currentLoadout.Guns[index] = randomWeapon[randomIndex]
+
+			Wep, _ := randomWeapon[randomIndex].SkinLevelID.GetInformation()
+			fmt.Println("Max:", len(randomWeapon)-1, "Rand:", randomIndex, "Weapon:", Wep.Data.DisplayName)
+
+		}
+
+	}
+
+	err = a.valorantAPIContext.SetAccountLoadout(*currentLoadout, localPlayer)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	return nil
+
+}
+
+func (a *App) LoadSavedLoadout(name string, isRandom bool) error {
 
 	fmt.Println("Loading loadout.. '" + name + "'")
 
 	writeData := map[string]SavedLoadout{}
 	err := loadoutStore.readJSON(&writeData)
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 
 	localPlayer, err := a.valorantAPIContext.GetLocalPlayerContext()
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 
 	currentLoadout, err := a.valorantAPIContext.GetAccountLoadout(localPlayer)
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 
@@ -421,9 +665,45 @@ func (a *App) LoadSavedLoadout(name string) error {
 	data.LoadoutData.Identity.Incognito = currentLoadout.Identity.Incognito
 	data.LoadoutData.Identity.PreferredLevelBorderID = currentLoadout.Identity.PreferredLevelBorderID
 
-	err = a.valorantAPIContext.SetAccountLoadout(data.LoadoutData, localPlayer)
+	storeData := SettingsStoreData{}
+	err = settingsStore.readJSON(&storeData)
 	if err != nil {
+		fmt.Println(err)
 		return err
+	}
+
+	storeData.IsRandomized = isRandom
+
+	err = settingsStore.writeJSON(storeData)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	if name != "Random" {
+
+		err = a.valorantAPIContext.SetAccountLoadout(data.LoadoutData, localPlayer)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+
+	} else {
+
+		// Set loadout to random weapons based on schema
+
+		if isRandom {
+
+			// Enable random
+
+			a.randomizeLoadout()
+
+		} else {
+
+			// Disable random
+
+		}
+
 	}
 
 	a.GetLoadouts()
@@ -447,7 +727,7 @@ var RemoveOldEntryLimit = 204800
 
 // Only keep up to X amount of entries in the lastSeenStore
 
-func onMatchEnd(lastMatchData *valorantapi.MatchData) {
+func (a *App) onMatchEnd(lastMatchData *valorantapi.MatchData) {
 
 	writeData := map[string]LastSeenObject{}
 	err := lastSeenStore.readJSON(&writeData)
@@ -503,13 +783,15 @@ func onMatchEnd(lastMatchData *valorantapi.MatchData) {
 
 		}
 
+		a.randomizeLoadout()
+
 	} else {
 		fmt.Println(err)
 	}
 
 }
 
-func onMatchStart(matchData *valorantapi.MatchData) {
+func (a *App) onMatchStart(matchData *valorantapi.MatchData) {
 
 	fmt.Println("Match has started")
 
@@ -531,10 +813,10 @@ func (a *App) updateMatchData() *valorantapi.MatchData {
 
 			if lastMatchID == "" {
 				lastMatchData = data
-				onMatchStart(data)
+				a.onMatchStart(data)
 			} else {
 				if data.MatchID == "" {
-					onMatchEnd(lastMatchData)
+					a.onMatchEnd(lastMatchData)
 				}
 			}
 

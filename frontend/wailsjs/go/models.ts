@@ -35,6 +35,8 @@ export namespace main {
 	export class UpdateLoadoutObj {
 	    Loadouts: Record<string, SavedLoadout>;
 	    CurrentLoadout: valorantapi.ValorantLocalLoadout;
+	    RandomWeaponsSelected: Record<string, boolean>;
+	    IsRandomSelected: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new UpdateLoadoutObj(source);
@@ -44,6 +46,8 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.Loadouts = this.convertValues(source["Loadouts"], SavedLoadout, true);
 	        this.CurrentLoadout = this.convertValues(source["CurrentLoadout"], valorantapi.ValorantLocalLoadout);
+	        this.RandomWeaponsSelected = source["RandomWeaponsSelected"];
+	        this.IsRandomSelected = source["IsRandomSelected"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
