@@ -679,9 +679,9 @@ func (context ValorantAPIContext) constructPregameData(CurrentMatch *ValorantCur
 
 		data.AllyTeam.Players[index].PeakRank = CompetitiveTierLookup[rankData.PeakRank]
 		data.AllyTeam.Players[index].LastMatchPartyID = TeammateLookup[v.Subject]
-		data.AllyTeam.Players[index].PeakRankDisplayIcon = fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/564d8e28-c226-3180-6285-e48a390db8b1/%v/largeicon.png`, rankData.PeakRank)
+		data.AllyTeam.Players[index].PeakRankDisplayIcon = fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/%v/largeicon.png`, rankData.PeakRank)
 		data.AllyTeam.Players[index].CurrentRank = CompetitiveTierLookup[rankData.CurrentRank]
-		data.AllyTeam.Players[index].CurrentRankDisplayIcon = fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/564d8e28-c226-3180-6285-e48a390db8b1/%v/largeicon.png`, rankData.CurrentRank)
+		data.AllyTeam.Players[index].CurrentRankDisplayIcon = fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/%v/largeicon.png`, rankData.CurrentRank)
 		data.AllyTeam.Players[index].Items = Items
 
 	}
@@ -706,9 +706,9 @@ func (context ValorantAPIContext) constructPregameData(CurrentMatch *ValorantCur
 
 		data.EnemyTeam.Players[index].PeakRank = CompetitiveTierLookup[rankData.PeakRank]
 		data.EnemyTeam.Players[index].LastMatchPartyID = TeammateLookup[v.Subject]
-		data.EnemyTeam.Players[index].PeakRankDisplayIcon = fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/564d8e28-c226-3180-6285-e48a390db8b1/%v/largeicon.png`, rankData.PeakRank)
+		data.EnemyTeam.Players[index].PeakRankDisplayIcon = fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/%v/largeicon.png`, rankData.PeakRank)
 		data.EnemyTeam.Players[index].CurrentRank = CompetitiveTierLookup[rankData.CurrentRank]
-		data.EnemyTeam.Players[index].CurrentRankDisplayIcon = fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/564d8e28-c226-3180-6285-e48a390db8b1/%v/largeicon.png`, rankData.CurrentRank)
+		data.EnemyTeam.Players[index].CurrentRankDisplayIcon = fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/%v/largeicon.png`, rankData.CurrentRank)
 		data.EnemyTeam.Players[index].Items = Items
 
 	}
@@ -840,9 +840,9 @@ func (context ValorantAPIContext) constructMainGameData(CurrentMatch *ValorantCu
 				IsCaptain:               false,
 				PlatformType:            v.PlatformType,
 				PeakRank:                CompetitiveTierLookup[rankData.PeakRank],
-				PeakRankDisplayIcon:     fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/564d8e28-c226-3180-6285-e48a390db8b1/%v/largeicon.png`, rankData.PeakRank),
+				PeakRankDisplayIcon:     fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/%v/largeicon.png`, rankData.PeakRank),
 				CurrentRank:             CompetitiveTierLookup[rankData.CurrentRank],
-				CurrentRankDisplayIcon:  fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/564d8e28-c226-3180-6285-e48a390db8b1/%v/largeicon.png`, rankData.CurrentRank),
+				CurrentRankDisplayIcon:  fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/%v/largeicon.png`, rankData.CurrentRank),
 				Items:                   Items,
 			}
 

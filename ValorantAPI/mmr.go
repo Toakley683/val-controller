@@ -3,8 +3,6 @@ package valorantapi
 import (
 	"encoding/json"
 	"io"
-	"math"
-	"strconv"
 	"time"
 )
 
@@ -237,23 +235,14 @@ func (context ValorantAPIContext) GetCurrentAndPeakRank(player *ValorantPlayerCo
 		return 0, 0, err
 	}
 
-	currentRank := int(math.Min(float64(Data.LatestCompetitiveUpdate.TierAfterUpdate), float64(24)))
+	currentRank := Data.LatestCompetitiveUpdate.TierAfterUpdate
 
 	highestRank := 0
 
 	for _, v := range Data.QueueSkills.Competitive.SeasonalInfoBySeasonID {
 
-		for i := range v.WinsByTier {
-
-			tier, err := strconv.Atoi(i)
-			if err != nil {
-				continue
-			}
-
-			if highestRank < tier {
-				highestRank = int(math.Min(float64(tier), float64(24)))
-			}
-
+		if highestRank < v.CompetitiveTier {
+			highestRank = v.CompetitiveTier
 		}
 
 	}

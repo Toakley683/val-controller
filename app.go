@@ -499,6 +499,10 @@ func (a *App) AddWeaponsToBeRandomized(val map[string]bool) error {
 		return err
 	}
 
+	// Change to courotine that does it in a few seconds to not spam the API
+
+	a.randomizeLoadout()
+
 	return nil
 
 }
@@ -617,10 +621,13 @@ func (a *App) randomizeLoadout() error {
 
 			randomWeapon := OwnedWeaponLookup[uuid]
 			randomIndex := rand.Intn(len(randomWeapon) - 1)
-			currentLoadout.Guns[index] = randomWeapon[randomIndex]
 
-			Wep, _ := randomWeapon[randomIndex].SkinLevelID.GetInformation()
-			fmt.Println("Max:", len(randomWeapon)-1, "Rand:", randomIndex, "Weapon:", Wep.Data.DisplayName)
+			randomWeapon[randomIndex].CharmInstanceID = currentLoadout.Guns[index].CharmInstanceID
+			randomWeapon[randomIndex].CharmID = currentLoadout.Guns[index].CharmID
+			randomWeapon[randomIndex].CharmLevelID = currentLoadout.Guns[index].CharmLevelID
+			randomWeapon[randomIndex].Attachments = currentLoadout.Guns[index].Attachments
+
+			currentLoadout.Guns[index] = randomWeapon[randomIndex]
 
 		}
 
@@ -631,6 +638,7 @@ func (a *App) randomizeLoadout() error {
 		fmt.Println(err)
 		return err
 	}
+	a.GetLoadouts()
 
 	return nil
 

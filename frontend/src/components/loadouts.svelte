@@ -171,6 +171,8 @@
             CurrentLoadout = data.CurrentLoadout
             randomizedItems = data.RandomWeaponsSelected
 
+            console.log("Current",CurrentLoadout)
+
             loadoutList = Object.entries(data.Loadouts).map( ([key, value]) => {
 
                 if (key == "Random") {
@@ -317,21 +319,39 @@
                 </div>
 
                 <div class="skin_loadout">
-                
-                    {#each loadoutSelected.value.LoadoutData.Guns as item (item.ID)}
+                    {#if loadoutSelected.key == "Random" && CurrentLoadout != null}
                     
-                    <div 
-                        class="skin_loadout_item { randomizedItems[item.ID] && loadoutSelected.key == "Random" ? "selected" : "" }"
-                        on:click={ () => { setItemToRandomize(item.ID) }}
-                        on:keyup={ () => { setItemToRandomize(item.ID) }}
-                    >
+                        {#each CurrentLoadout.Guns as item, index (item.ID)}
+                            
+                            <div 
+                                class="skin_loadout_item { randomizedItems[item.ID] && loadoutSelected.key == "Random" ? "selected" : "" }"
+                                on:click={ () => { setItemToRandomize(item.ID) }}
+                                on:keyup={ () => { setItemToRandomize(item.ID) }}
+                            >
 
-                        <div class="loadout_item_text">{loadoutSelected.value.NameLookup[item.SkinID]}</div>
-                        <img src="https://media.valorant-api.com/weaponskinchromas/{item.ChromaID}/fullrender.png" alt="{item.ID}"/>
+                            <div class="loadout_item_text">{loadoutSelected.value.NameLookup[loadoutSelected?.value?.LoadoutData?.Guns[index].SkinID]}</div>
+                            <img src="https://media.valorant-api.com/weaponskinchromas/{item.ChromaID}/fullrender.png" alt="{item.ID}"/>
 
-                    </div>
+                        </div>
 
-                    {/each}
+                        {/each}
+
+                    {/if}
+
+                    {#if loadoutSelected.key != "Random"}
+                    
+                        {#each loadoutSelected.value.LoadoutData.Guns as item (item.ID)}
+                            
+                            <div class="skin_loadout_item">
+
+                            <div class="loadout_item_text">{loadoutSelected.value.NameLookup[item.SkinID]}</div>
+                            <img src="https://media.valorant-api.com/weaponskinchromas/{item.ChromaID}/fullrender.png" alt="{item.ID}"/>
+
+                        </div>
+
+                        {/each}
+
+                    {/if}
 
                 </div>
 
