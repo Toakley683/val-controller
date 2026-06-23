@@ -2,7 +2,9 @@ package valorantapi
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
+	"strconv"
 	"time"
 )
 
@@ -207,14 +209,16 @@ func (context ValorantAPIContext) getMMRData(player *ValorantPlayerContext) (*va
 }
 
 type RankCacheItem struct {
-	CurrentRank int
-	PeakRank    int
-	LastChecked time.Time
+	CurrentRank    int
+	CurrentSeason  string
+	PeakRank       int
+	PeakRankSeason string
+	LastChecked    time.Time
 }
 
 var RankCache = map[string]*RankCacheItem{}
 
-func (context ValorantAPIContext) GetCurrentAndPeakRank(player *ValorantPlayerContext) (Current int, Highest int, err error) {
+func (context ValorantAPIContext) GetCurrentAndPeakRank(player *ValorantPlayerContext) (rankData *RankCacheItem, err error) {
 
 	if RankCache[player.UUID] != nil {
 
@@ -222,7 +226,7 @@ func (context ValorantAPIContext) GetCurrentAndPeakRank(player *ValorantPlayerCo
 
 		if time.Since(RankCache[player.UUID].LastChecked) <= time.Minute*30 {
 
-			return RankCache[player.UUID].CurrentRank, RankCache[player.UUID].PeakRank, nil
+			return RankCache[player.UUID], nil
 
 		}
 
@@ -232,27 +236,124 @@ func (context ValorantAPIContext) GetCurrentAndPeakRank(player *ValorantPlayerCo
 
 	Data, err = context.getMMRData(player)
 	if err != nil {
-		return 0, 0, err
+		return nil, err
 	}
 
 	currentRank := Data.LatestCompetitiveUpdate.TierAfterUpdate
+	currentSeason := Data.LatestCompetitiveUpdate.SeasonID
 
 	highestRank := 0
+	highestSeasonID := ""
 
-	for _, v := range Data.QueueSkills.Competitive.SeasonalInfoBySeasonID {
+	for s, v := range Data.QueueSkills.Competitive.SeasonalInfoBySeasonID {
 
-		if highestRank < v.CompetitiveTier {
-			highestRank = v.CompetitiveTier
+		for rank := range v.WinsByTier {
+			numRank, err := strconv.Atoi(rank)
+
+			if err != nil {
+				numRank = v.CompetitiveTier
+			}
+
+			if highestRank < numRank {
+				highestRank = numRank
+				highestSeasonID = s
+			}
+
 		}
 
 	}
 
-	RankCache[player.UUID] = &RankCacheItem{
-		CurrentRank: currentRank,
-		PeakRank:    highestRank,
-		LastChecked: time.Now(),
+	if highestSeasonID == "" {
+		highestSeasonID = currentSeason
 	}
 
-	return currentRank, highestRank, nil
+	RankCache[player.UUID] = &RankCacheItem{
+		CurrentRank:    currentRank,
+		CurrentSeason:  currentSeason,
+		PeakRank:       highestRank,
+		PeakRankSeason: highestSeasonID,
+		LastChecked:    time.Now(),
+	}
+
+	return RankCache[player.UUID], nil
+
+}
+
+type ValorantCompetitive struct {
+	Status int `json:"status"`
+	Data   []struct {
+		UUID                 string    `json:"uuid"`
+		StartTime            time.Time `json:"startTime"`
+		EndTime              time.Time `json:"endTime"`
+		SeasonUUID           string    `json:"seasonUuid"`
+		CompetitiveTiersUUID string    `json:"competitiveTiersUuid"`
+		Borders              []struct {
+			UUID         string      `json:"uuid"`
+			Level        int         `json:"level"`
+			WinsRequired int         `json:"winsRequired"`
+			DisplayIcon  string      `json:"displayIcon"`
+			SmallIcon    interface{} `json:"smallIcon"`
+			AssetPath    string      `json:"assetPath"`
+		} `json:"borders"`
+		AssetPath string `json:"assetPath"`
+	} `json:"data"`
+}
+
+var SeasonLookupCache map[string]string
+
+/* Gets all Seasons with their UUID as lookup to get the competitive rank uuid */
+func (context ValorantAPIContext) GetSeasonLookup() (map[string]string, error) {
+
+	if SeasonLookupCache != nil {
+		return SeasonLookupCache, nil
+	}
+
+	APICall := newAPICall()
+
+	APICall.URL = "https://valorant-api.com/v1/seasons/competitive"
+	APICall.Body = nil
+	APICall.Method = "GET"
+
+	var err error
+
+	err = APICall.SetRequest()
+	if err != nil {
+		return nil, err
+	}
+
+	err = APICall.Call()
+	if err != nil {
+		return nil, err
+	}
+
+	defer APICall.Response.Body.Close()
+
+	FullBody, err := io.ReadAll(APICall.Response.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	Response := &ValorantCompetitive{}
+
+	err = json.Unmarshal(FullBody, &Response)
+	if err != nil {
+		return nil, err
+	}
+
+	if Response.Status != 200 {
+		return nil, errors.New(VALORANT_NO_VALID_RESPONSE)
+	}
+
+	Output := map[string]string{}
+
+	for _, v := range Response.Data {
+
+		Output[v.SeasonUUID] = v.CompetitiveTiersUUID
+
+	}
+
+	SeasonLookupCache = Output
+
+	return SeasonLookupCache, nil
 
 }

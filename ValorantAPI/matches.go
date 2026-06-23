@@ -495,9 +495,11 @@ type MatchData struct {
 }
 
 type valorantRankStruct struct {
-	UUID        string
-	CurrentRank int
-	PeakRank    int
+	UUID           string
+	CurrentRank    int
+	CurrentSeason  string
+	PeakRank       int
+	PeakRankSeason string
 }
 
 var lastMatchData *MatchData = nil
@@ -609,7 +611,7 @@ func (context ValorantAPIContext) constructPregameData(CurrentMatch *ValorantCur
 					break
 				}
 
-				CurrentRank, PeakRank, err := context.GetCurrentAndPeakRank(GetValorantPlayer(v.Subject))
+				RankData, err := context.GetCurrentAndPeakRank(GetValorantPlayer(v.Subject))
 				if err != nil {
 					fmt.Println("MMR:", err)
 
@@ -622,9 +624,11 @@ func (context ValorantAPIContext) constructPregameData(CurrentMatch *ValorantCur
 				}
 
 				rankStruct := valorantRankStruct{
-					UUID:        v.Subject,
-					CurrentRank: CurrentRank,
-					PeakRank:    PeakRank,
+					UUID:           v.Subject,
+					CurrentRank:    RankData.CurrentRank,
+					CurrentSeason:  RankData.CurrentSeason,
+					PeakRank:       RankData.PeakRank,
+					PeakRankSeason: RankData.PeakRankSeason,
 				}
 
 				rankChan <- rankStruct
@@ -675,13 +679,18 @@ func (context ValorantAPIContext) constructPregameData(CurrentMatch *ValorantCur
 
 		}
 
+		seasonLookup, err := context.GetSeasonLookup()
+		if err != nil {
+			fmt.Println(err)
+		}
+
 		data.AllyTeam.Players[index].CharacterDisplayIcon = "https://media.valorant-api.com/playercards/" + v.PlayerIdentity.PlayerCardID + "/smallart.png"
 
 		data.AllyTeam.Players[index].PeakRank = CompetitiveTierLookup[rankData.PeakRank]
 		data.AllyTeam.Players[index].LastMatchPartyID = TeammateLookup[v.Subject]
-		data.AllyTeam.Players[index].PeakRankDisplayIcon = fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/%v/largeicon.png`, rankData.PeakRank)
+		data.AllyTeam.Players[index].PeakRankDisplayIcon = fmt.Sprintf(`https://media.valorant-api.com/seasonborders/%v/%v/displayIcon.png`, seasonLookup[rankData.PeakRankSeason], rankData.PeakRank)
 		data.AllyTeam.Players[index].CurrentRank = CompetitiveTierLookup[rankData.CurrentRank]
-		data.AllyTeam.Players[index].CurrentRankDisplayIcon = fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/%v/largeicon.png`, rankData.CurrentRank)
+		data.AllyTeam.Players[index].CurrentRankDisplayIcon = fmt.Sprintf(`https://media.valorant-api.com/seasonborders/%v/%v/displayIcon.png`, seasonLookup[rankData.CurrentSeason], rankData.CurrentRank)
 		data.AllyTeam.Players[index].Items = Items
 
 	}
@@ -754,7 +763,7 @@ func (context ValorantAPIContext) constructMainGameData(CurrentMatch *ValorantCu
 					break
 				}
 
-				CurrentRank, PeakRank, err := context.GetCurrentAndPeakRank(GetValorantPlayer(v.PlayerID))
+				RankData, err := context.GetCurrentAndPeakRank(GetValorantPlayer(v.PlayerID))
 				if err != nil {
 					fmt.Println(err)
 
@@ -767,9 +776,11 @@ func (context ValorantAPIContext) constructMainGameData(CurrentMatch *ValorantCu
 				}
 
 				rankStruct := valorantRankStruct{
-					UUID:        v.PlayerID,
-					CurrentRank: CurrentRank,
-					PeakRank:    PeakRank,
+					UUID:           v.PlayerID,
+					CurrentRank:    RankData.CurrentRank,
+					CurrentSeason:  RankData.CurrentSeason,
+					PeakRank:       RankData.PeakRank,
+					PeakRankSeason: RankData.PeakRankSeason,
 				}
 
 				rankChan <- rankStruct
@@ -827,6 +838,10 @@ func (context ValorantAPIContext) constructMainGameData(CurrentMatch *ValorantCu
 			}
 
 			rankData := RankLookupTable[v.PlayerID]
+			seasonLookup, err := context.GetSeasonLookup()
+			if err != nil {
+				fmt.Println(err)
+			}
 
 			NewPlayerData := valorantMatchTeamPlayer{
 				Subject:                 v.PlayerID,
@@ -840,9 +855,9 @@ func (context ValorantAPIContext) constructMainGameData(CurrentMatch *ValorantCu
 				IsCaptain:               false,
 				PlatformType:            v.PlatformType,
 				PeakRank:                CompetitiveTierLookup[rankData.PeakRank],
-				PeakRankDisplayIcon:     fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/%v/largeicon.png`, rankData.PeakRank),
+				PeakRankDisplayIcon:     fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/%v/%v/largeicon.png`, seasonLookup[rankData.PeakRankSeason], rankData.PeakRank),
 				CurrentRank:             CompetitiveTierLookup[rankData.CurrentRank],
-				CurrentRankDisplayIcon:  fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/%v/largeicon.png`, rankData.CurrentRank),
+				CurrentRankDisplayIcon:  fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/%v/%v/largeicon.png`, seasonLookup[rankData.CurrentSeason], rankData.CurrentRank),
 				Items:                   Items,
 			}
 
