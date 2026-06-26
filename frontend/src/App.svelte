@@ -100,7 +100,7 @@
     loadouts: {
       layout: Loadouts,
       windowSize: {
-        width: 650,
+        width: 600,
         height: 400
       },
       svg: LoadoutsIcon,

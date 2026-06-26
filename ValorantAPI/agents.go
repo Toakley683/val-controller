@@ -2,7 +2,6 @@ package valorantapi
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 )
 
@@ -17,9 +16,9 @@ type OwnedItems struct {
 
 var OwnedAgentsCache map[string]AgentID
 
-func (context ValorantAPIContext) GetOwnedAgentData() (map[string]AgentID, error) {
+func (context ValorantAPIContext) GetOwnedAgentData(useCache bool) (map[string]AgentID, error) {
 
-	if OwnedAgentsCache != nil {
+	if OwnedAgentsCache != nil && useCache {
 		return OwnedAgentsCache, nil
 	}
 
@@ -68,8 +67,6 @@ func (context ValorantAPIContext) GetOwnedAgentData() (map[string]AgentID, error
 		OwnedAgentLookup[v.ItemID] = AgentID(v.ItemID)
 
 	}
-
-	fmt.Println(OwnedAgentLookup)
 
 	OwnedAgentsCache = OwnedAgentLookup
 

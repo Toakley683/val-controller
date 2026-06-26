@@ -329,7 +329,7 @@
                                 on:keyup={ () => { setItemToRandomize(item.ID) }}
                             >
 
-                            <div class="loadout_item_text">{loadoutSelected.value.NameLookup[loadoutSelected?.value?.LoadoutData?.Guns[index].SkinID]}</div>
+                            <div class="loadout_item_text">{loadoutSelected.value.NameLookup[item.ID]}</div>
                             <img src="https://media.valorant-api.com/weaponskinchromas/{item.ChromaID}/fullrender.png" alt="{item.ID}"/>
 
                         </div>
@@ -344,7 +344,7 @@
                             
                             <div class="skin_loadout_item">
 
-                            <div class="loadout_item_text">{loadoutSelected.value.NameLookup[item.SkinID]}</div>
+                            <div class="loadout_item_text">{loadoutSelected.value.NameLookup[item.ID]}</div>
                             <img src="https://media.valorant-api.com/weaponskinchromas/{item.ChromaID}/fullrender.png" alt="{item.ID}"/>
 
                         </div>
@@ -509,6 +509,11 @@
         color: hsla(180, 67%, 99%, 0.7);
         font-weight: 700;
         font-family: 'DMSans', sans-serif;
+        
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        width: 100%;
     }
 
     .container-side bar {

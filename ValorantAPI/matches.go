@@ -684,13 +684,24 @@ func (context ValorantAPIContext) constructPregameData(CurrentMatch *ValorantCur
 			fmt.Println(err)
 		}
 
+		peakRankTier := seasonLookup[rankData.PeakRankSeason]
+		curRankTier := seasonLookup[rankData.CurrentSeason]
+
+		if peakRankTier == "" {
+			peakRankTier = "564d8e28-c226-3180-6285-e48a390db8b1"
+		}
+
+		if curRankTier == "" {
+			curRankTier = "564d8e28-c226-3180-6285-e48a390db8b1"
+		}
+
 		data.AllyTeam.Players[index].CharacterDisplayIcon = "https://media.valorant-api.com/playercards/" + v.PlayerIdentity.PlayerCardID + "/smallart.png"
 
 		data.AllyTeam.Players[index].PeakRank = CompetitiveTierLookup[rankData.PeakRank]
 		data.AllyTeam.Players[index].LastMatchPartyID = TeammateLookup[v.Subject]
-		data.AllyTeam.Players[index].PeakRankDisplayIcon = fmt.Sprintf(`https://media.valorant-api.com/seasonborders/%v/%v/displayIcon.png`, seasonLookup[rankData.PeakRankSeason], rankData.PeakRank)
+		data.AllyTeam.Players[index].PeakRankDisplayIcon = fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/%v/%v/largeicon.png`, peakRankTier, rankData.PeakRank)
 		data.AllyTeam.Players[index].CurrentRank = CompetitiveTierLookup[rankData.CurrentRank]
-		data.AllyTeam.Players[index].CurrentRankDisplayIcon = fmt.Sprintf(`https://media.valorant-api.com/seasonborders/%v/%v/displayIcon.png`, seasonLookup[rankData.CurrentSeason], rankData.CurrentRank)
+		data.AllyTeam.Players[index].CurrentRankDisplayIcon = fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/%v/%v/largeicon.png`, curRankTier, rankData.CurrentRank)
 		data.AllyTeam.Players[index].Items = Items
 
 	}
@@ -711,13 +722,29 @@ func (context ValorantAPIContext) constructPregameData(CurrentMatch *ValorantCur
 
 		}
 
+		seasonLookup, err := context.GetSeasonLookup()
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		peakRankTier := seasonLookup[rankData.PeakRankSeason]
+		curRankTier := seasonLookup[rankData.CurrentSeason]
+
+		if peakRankTier == "" {
+			peakRankTier = "564d8e28-c226-3180-6285-e48a390db8b1"
+		}
+
+		if curRankTier == "" {
+			curRankTier = "564d8e28-c226-3180-6285-e48a390db8b1"
+		}
+
 		data.EnemyTeam.Players[index].CharacterDisplayIcon = "https://media.valorant-api.com/playercards/" + v.PlayerIdentity.PlayerCardID + "/smallart.png"
 
 		data.EnemyTeam.Players[index].PeakRank = CompetitiveTierLookup[rankData.PeakRank]
 		data.EnemyTeam.Players[index].LastMatchPartyID = TeammateLookup[v.Subject]
-		data.EnemyTeam.Players[index].PeakRankDisplayIcon = fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/%v/largeicon.png`, rankData.PeakRank)
+		data.EnemyTeam.Players[index].PeakRankDisplayIcon = fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/%v/%v/displayIcon.png`, peakRankTier, rankData.PeakRank)
 		data.EnemyTeam.Players[index].CurrentRank = CompetitiveTierLookup[rankData.CurrentRank]
-		data.EnemyTeam.Players[index].CurrentRankDisplayIcon = fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/%v/largeicon.png`, rankData.CurrentRank)
+		data.EnemyTeam.Players[index].CurrentRankDisplayIcon = fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/%v/%v/displayIcon.png`, curRankTier, rankData.CurrentRank)
 		data.EnemyTeam.Players[index].Items = Items
 
 	}
@@ -843,6 +870,17 @@ func (context ValorantAPIContext) constructMainGameData(CurrentMatch *ValorantCu
 				fmt.Println(err)
 			}
 
+			peakRankTier := seasonLookup[rankData.PeakRankSeason]
+			curRankTier := seasonLookup[rankData.CurrentSeason]
+
+			if peakRankTier == "" {
+				peakRankTier = "564d8e28-c226-3180-6285-e48a390db8b1"
+			}
+
+			if curRankTier == "" {
+				curRankTier = "564d8e28-c226-3180-6285-e48a390db8b1"
+			}
+
 			NewPlayerData := valorantMatchTeamPlayer{
 				Subject:                 v.PlayerID,
 				CharacterID:             AgentID(v.CharacterID),
@@ -855,9 +893,9 @@ func (context ValorantAPIContext) constructMainGameData(CurrentMatch *ValorantCu
 				IsCaptain:               false,
 				PlatformType:            v.PlatformType,
 				PeakRank:                CompetitiveTierLookup[rankData.PeakRank],
-				PeakRankDisplayIcon:     fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/%v/%v/largeicon.png`, seasonLookup[rankData.PeakRankSeason], rankData.PeakRank),
+				PeakRankDisplayIcon:     fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/%v/%v/largeicon.png`, peakRankTier, rankData.PeakRank),
 				CurrentRank:             CompetitiveTierLookup[rankData.CurrentRank],
-				CurrentRankDisplayIcon:  fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/%v/%v/largeicon.png`, seasonLookup[rankData.CurrentSeason], rankData.CurrentRank),
+				CurrentRankDisplayIcon:  fmt.Sprintf(`https://media.valorant-api.com/competitivetiers/%v/%v/largeicon.png`, curRankTier, rankData.CurrentRank),
 				Items:                   Items,
 			}
 

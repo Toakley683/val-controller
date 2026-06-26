@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-stack/stack"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	valorantapi "val-controller/ValorantAPI"
@@ -168,6 +169,8 @@ type LastSeenObject struct {
 	MatchesAgo int64  `json:"MatchesAgo"`
 }
 
+var lastSubject string = ""
+
 // startup is called when the app starts. The context is saved
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
@@ -209,14 +212,14 @@ func (a *App) startup(ctx context.Context) {
 
 			a.valorantAPIContext, err = valorantapi.GetLocalValorantAPIContext()
 			if err != nil {
-				fmt.Println(err)
+				fmt.Println("Get Context Error:", err)
 				time.Sleep(1 * time.Second)
 				continue
 			}
 
 			_, err := a.valorantAPIContext.GetEntitlementToken()
 			if err != nil {
-				fmt.Println(err)
+				fmt.Println("Get Entitlement Error:", err)
 
 				a.clientUpdate.IsGameOpen = false
 				a.clientUpdate.IsLoaded = false
@@ -231,76 +234,18 @@ func (a *App) startup(ctx context.Context) {
 			a.clientUpdate.IsLoaded = true
 			a.updateClient(a.clientUpdate)
 
-			OwnedAgentLookup, err = a.valorantAPIContext.GetOwnedAgentData()
-			OwnedWeaponChromas, err := a.valorantAPIContext.GetOwnedWeaponChromas()
-			OwnedWeaponSkins, err := a.valorantAPIContext.GetOwnedWeaponSkins()
+			//doUseCache := true
 
-			if OwnedWeaponLookup == nil {
-				AllWeapons, err = a.valorantAPIContext.GetAllWeapons()
+			Subject, err := a.valorantAPIContext.GetLocalPlayerContext()
+			if err != nil {
+				fmt.Println("Subject Find Error:", err)
+				continue
+			}
 
-				OwnedWeaponLookup = map[string][]valorantapi.ValorantLocalLoadoutGuns{}
+			if lastSubject != Subject.UUID {
+				lastSubject = Subject.UUID
 
-				for _, weapon := range AllWeapons.Data {
-					if OwnedWeaponLookup[weapon.UUID] == nil {
-						OwnedWeaponLookup[weapon.UUID] = []valorantapi.ValorantLocalLoadoutGuns{}
-					}
-
-					for _, skin := range weapon.Skins {
-
-						allChroma := []valorantapi.ValorantLocalLoadoutGuns{}
-
-						highestLevel := 0
-
-						for i, skinLevels := range skin.Levels {
-
-							if OwnedWeaponSkins[skinLevels.UUID] != nil {
-
-								if highestLevel < i+1 {
-									highestLevel = i + 1
-								}
-
-							}
-
-						}
-
-						if highestLevel > 0 {
-
-							ownedChromas := 0
-
-							for _, chroma := range skin.Chromas {
-
-								if OwnedWeaponChromas[chroma.UUID] != nil {
-
-									// Need to add max skin VARIANTS to list of available to use
-
-									allChroma = append(allChroma, valorantapi.ValorantLocalLoadoutGuns{
-										ID:          valorantapi.WeaponID(weapon.UUID),
-										SkinID:      valorantapi.WeaponSkinID(skin.UUID),
-										SkinLevelID: valorantapi.WeaponSkinLevelID(skin.Levels[highestLevel-1].UUID),
-										ChromaID:    valorantapi.WeaponChromaID(chroma.UUID),
-									})
-
-									ownedChromas++
-
-								}
-
-							}
-
-							// Need to add max skin level to list of available to use
-
-							allChroma = append(allChroma, valorantapi.ValorantLocalLoadoutGuns{
-								ID:          valorantapi.WeaponID(weapon.UUID),
-								SkinID:      valorantapi.WeaponSkinID(skin.UUID),
-								SkinLevelID: valorantapi.WeaponSkinLevelID(skin.Levels[highestLevel-1].UUID),
-								ChromaID:    valorantapi.WeaponChromaID(skin.Chromas[0].UUID),
-							})
-
-						}
-
-						OwnedWeaponLookup[weapon.UUID] = append(OwnedWeaponLookup[weapon.UUID], allChroma...)
-					}
-				}
-
+				a.onLoad()
 			}
 
 			time.Sleep(1 * time.Second)
@@ -320,6 +265,109 @@ func (a *App) startup(ctx context.Context) {
 		}
 
 	}()
+}
+
+func (a *App) onLoad() {
+
+	fmt.Println("On Load")
+
+	var err error
+
+	OwnedAgentLookup, err = a.valorantAPIContext.GetOwnedAgentData(false)
+	if err != nil {
+		fmt.Println("Owned Agent Data Error:", err)
+		return
+	}
+
+	OwnedWeaponChromas, err := a.valorantAPIContext.GetOwnedWeaponChromas(false)
+	if err != nil {
+		fmt.Println("Get Owned Chroma Error:", err)
+		return
+	}
+
+	OwnedWeaponSkins, err := a.valorantAPIContext.GetOwnedWeaponSkins(false)
+	if err != nil {
+		fmt.Println("Get Owned Weapon Error:", err)
+		return
+	}
+
+	AllWeapons, err = a.valorantAPIContext.GetAllWeapons()
+
+	OwnedWeaponLookup = map[string][]valorantapi.ValorantLocalLoadoutGuns{}
+
+	for _, weapon := range AllWeapons.Data {
+		if OwnedWeaponLookup[weapon.UUID] == nil {
+			OwnedWeaponLookup[weapon.UUID] = []valorantapi.ValorantLocalLoadoutGuns{}
+		}
+
+		for _, skin := range weapon.Skins {
+
+			isDefault := false
+
+			if skin.ThemeUUID == "5a629df4-4765-0214-bd40-fbb96542941f" {
+
+				// Get all standard skins
+
+				isDefault = true
+
+			}
+
+			allChroma := []valorantapi.ValorantLocalLoadoutGuns{}
+
+			highestLevel := 0
+
+			for i, skinLevels := range skin.Levels {
+
+				if OwnedWeaponSkins[skinLevels.UUID] != nil || isDefault {
+
+					if highestLevel < i+1 {
+						highestLevel = i + 1
+					}
+
+				}
+
+			}
+
+			if highestLevel > 0 {
+
+				ownedChromas := 0
+
+				for _, chroma := range skin.Chromas {
+
+					if OwnedWeaponChromas[chroma.UUID] != nil {
+
+						// Need to add max skin VARIANTS to list of available to use
+
+						allChroma = append(allChroma, valorantapi.ValorantLocalLoadoutGuns{
+							ID:          valorantapi.WeaponID(weapon.UUID),
+							SkinID:      valorantapi.WeaponSkinID(skin.UUID),
+							SkinLevelID: valorantapi.WeaponSkinLevelID(skin.Levels[highestLevel-1].UUID),
+							ChromaID:    valorantapi.WeaponChromaID(chroma.UUID),
+						})
+
+						ownedChromas++
+
+					}
+
+				}
+
+				// Need to add max skin level to list of available to use
+
+				allChroma = append(allChroma, valorantapi.ValorantLocalLoadoutGuns{
+					ID:          valorantapi.WeaponID(weapon.UUID),
+					SkinID:      valorantapi.WeaponSkinID(skin.UUID),
+					SkinLevelID: valorantapi.WeaponSkinLevelID(skin.Levels[highestLevel-1].UUID),
+					ChromaID:    valorantapi.WeaponChromaID(skin.Chromas[0].UUID),
+				})
+
+			}
+
+			OwnedWeaponLookup[weapon.UUID] = append(OwnedWeaponLookup[weapon.UUID], allChroma...)
+		}
+	}
+
+	a.GetLoadouts()
+
 }
 
 func (a *App) CloseWindow() {
@@ -393,26 +441,27 @@ var RandomLoadout SavedLoadout = SavedLoadout{
 		},
 	},
 	NameLookup: map[string]string{
-		"12cc9ed2-4430-d2fe-3064-f7a19b1ba7c7": "Random Melee",
-		"1c63b43b-43c4-04e4-01c9-7aa1bffa5ac1": "Random Ghost",
-		"1ef6ba68-4dbe-30c7-6bc8-93a6c6f13f04": "Random Sheriff",
-		"24aee897-4cdc-b0fd-e596-1ba90fa6d1b2": "Random Classic",
-		"27f21d97-4c4b-bd1c-1f08-31830ab0be84": "Random Vandal",
-		"337cb216-4a6e-d85d-88c2-f29ab317784c": "Random Phantom",
-		"3bf1e8e0-47e8-f27a-6054-929575f41a54": "Random Guardian",
-		"48ad078a-4dae-2b85-a945-f4b6d1efecbb": "Random Shorty",
-		"5305d9c4-4f46-fbf4-9e9a-dea772c263b5": "Random Ares",
-		"70c97fb2-4d79-d4bb-5173-a1888cd4bfd9": "Random Bucky",
-		"724a7f42-4315-eccf-0e76-77bdd3ec2e09": "Random Bulldog",
-		"740b9572-44b1-57bf-767e-6aa01811f94d": "Random Outlaw",
-		"940fb417-4a9c-3004-41f5-3e8f1f4178b2": "Random Stinger",
-		"acd26127-48ff-8b9e-7ba6-b989af8a4b24": "Random Judge",
-		"b576b9f1-407d-310a-6009-6287fb6829bc": "Random Bandit",
-		"d1f2920f-469a-3431-ad96-96afbd0017f2": "Random Operator",
-		"f01d1307-4299-42f5-2c5e-7dab7e69ab19": "Random Spectre",
-		"f06657f3-48b6-6314-7235-a9a2749df5b9": "Random Frenzy",
-		"f454efd1-49cb-372f-7096-d394df615308": "Random Odin",
-		"fd44b2d5-49ee-77ab-fa56-588f3ac0c268": "Random Marshal",
+		"1baa85b4-4c70-1284-64bb-6481dfc3bb4e": "Random Ghost",
+		"29a0cfab-485b-f5d5-779a-b59f85e204a8": "Random Classic",
+		"2f59173c-4bed-b6c3-2191-dea9b58be9c7": "Random Melee",
+		"410b2e0b-4ceb-1321-1727-20858f7f3477": "Random Bandit",
+		"42da8ccc-40d5-affc-beec-15aa47b42eda": "Random Shorty",
+		"44d4e95c-4157-0037-81b2-17841bf2e8e3": "Random Frenzy",
+		"462080d1-4035-2937-7c09-27aa2a5c27a7": "Random Spectre",
+		"4ade7faa-4cf1-8376-95ef-39884480959b": "Random Guardian",
+		"55d8a0f4-4274-ca67-fe2c-06ab45efdf58": "Random Ares",
+		"5f0aaf7a-4289-3998-d5ff-eb9a5cf7ef5c": "Random Outlaw",
+		"63e6c2b6-4a8e-869c-3d4c-e38355226584": "Random Odin",
+		"6b4e1d0c-410e-878b-f151-9b8a8abc83a3": "Random Title",
+		"910be174-449b-c412-ab22-d0873436b21b": "Random Bucky",
+		"9c82e19d-4575-0200-1a81-3eacf00cf872": "Random Vandal",
+		"a03b24d3-4319-996d-0f8c-94bbfba1dfc7": "Random Operator",
+		"ae3de142-4d85-2547-dd26-4e90bed35cf7": "Random Bulldog",
+		"c4883e50-4494-202c-3ec3-6b8a9284f00b": "Random Marshal",
+		"e336c6b8-418d-9340-d77f-7a9e4cfe0702": "Random Sheriff",
+		"ec845bf4-4f79-ddda-a3da-0db3774b2794": "Random Judge",
+		"ee8e8d15-496b-07ac-e5f6-8fae5d4c7b1a": "Random Phantom",
+		"f7e1b454-4ad4-1063-ec0a-159e56b58941": "Random Stinger",
 	},
 }
 
@@ -461,7 +510,7 @@ func (a *App) sendLoadout() error {
 	storeData := SettingsStoreData{}
 	err = settingsStore.readJSON(&storeData)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Settings Store Error:", err)
 		return err
 	}
 
@@ -484,10 +533,12 @@ func (a *App) sendLoadout() error {
 
 func (a *App) AddWeaponsToBeRandomized(val map[string]bool) error {
 
+	fmt.Println(val)
+
 	storeData := SettingsStoreData{}
 	err := settingsStore.readJSON(&storeData)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Read Settings Error", err, stack.Trace())
 		return err
 	}
 
@@ -495,7 +546,7 @@ func (a *App) AddWeaponsToBeRandomized(val map[string]bool) error {
 
 	err = settingsStore.writeJSON(storeData)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Write Settings Error", err, stack.Trace())
 		return err
 	}
 
@@ -528,7 +579,7 @@ func (a *App) SaveCurrentLoadout(name string) error {
 		if err != nil {
 			continue
 		}
-		NameLookup[string(v.SkinID)] = data.Data.DisplayName
+		NameLookup[string(v.ID)] = data.Data.DisplayName
 	}
 
 	data, err := currentLoadout.Identity.PlayerTitleID.GetInformation()
@@ -584,24 +635,23 @@ func (a *App) randomizeLoadout() error {
 	storeData := SettingsStoreData{}
 	err := settingsStore.readJSON(&storeData)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Read Settings Error", err, stack.Trace())
 		return err
 	}
 
 	if storeData.IsRandomized == false {
-		fmt.Println("Test")
 		return nil
 	}
 
 	localPlayer, err := a.valorantAPIContext.GetLocalPlayerContext()
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Get Local Player Context Error:", err, stack.Trace())
 		return err
 	}
 
 	currentLoadout, err := a.valorantAPIContext.GetAccountLoadout(localPlayer)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Get Account Loadout Error:", err, stack.Trace())
 		return err
 	}
 
@@ -620,14 +670,23 @@ func (a *App) randomizeLoadout() error {
 			index := currentLoadoutLookup[valorantapi.WeaponID(uuid)]
 
 			randomWeapon := OwnedWeaponLookup[uuid]
-			randomIndex := rand.Intn(len(randomWeapon) - 1)
 
-			randomWeapon[randomIndex].CharmInstanceID = currentLoadout.Guns[index].CharmInstanceID
-			randomWeapon[randomIndex].CharmID = currentLoadout.Guns[index].CharmID
-			randomWeapon[randomIndex].CharmLevelID = currentLoadout.Guns[index].CharmLevelID
-			randomWeapon[randomIndex].Attachments = currentLoadout.Guns[index].Attachments
+			if len(randomWeapon) <= 0 {
+				continue
+			}
 
-			currentLoadout.Guns[index] = randomWeapon[randomIndex]
+			// Shuffle the array and get the first element == Random
+
+			rand.Shuffle(len(randomWeapon), func(i, j int) {
+				randomWeapon[i], randomWeapon[j] = randomWeapon[j], randomWeapon[i]
+			})
+
+			randomWeapon[0].CharmInstanceID = currentLoadout.Guns[index].CharmInstanceID
+			randomWeapon[0].CharmID = currentLoadout.Guns[index].CharmID
+			randomWeapon[0].CharmLevelID = currentLoadout.Guns[index].CharmLevelID
+			randomWeapon[0].Attachments = currentLoadout.Guns[index].Attachments
+
+			currentLoadout.Guns[index] = randomWeapon[0]
 
 		}
 
@@ -635,7 +694,7 @@ func (a *App) randomizeLoadout() error {
 
 	err = a.valorantAPIContext.SetAccountLoadout(*currentLoadout, localPlayer)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Set Account Loadout Error", err, stack.Trace())
 		return err
 	}
 	a.GetLoadouts()
@@ -651,19 +710,19 @@ func (a *App) LoadSavedLoadout(name string, isRandom bool) error {
 	writeData := map[string]SavedLoadout{}
 	err := loadoutStore.readJSON(&writeData)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Read Settings Error", err, stack.Trace())
 		return err
 	}
 
 	localPlayer, err := a.valorantAPIContext.GetLocalPlayerContext()
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Get Local Player Context Error:", err, stack.Trace())
 		return err
 	}
 
 	currentLoadout, err := a.valorantAPIContext.GetAccountLoadout(localPlayer)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Get Account Loadout Error:", err, stack.Trace())
 		return err
 	}
 
@@ -676,7 +735,7 @@ func (a *App) LoadSavedLoadout(name string, isRandom bool) error {
 	storeData := SettingsStoreData{}
 	err = settingsStore.readJSON(&storeData)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Read Settings Error", err, stack.Trace())
 		return err
 	}
 
@@ -684,7 +743,7 @@ func (a *App) LoadSavedLoadout(name string, isRandom bool) error {
 
 	err = settingsStore.writeJSON(storeData)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Write Settings Error", err, stack.Trace())
 		return err
 	}
 
@@ -692,7 +751,7 @@ func (a *App) LoadSavedLoadout(name string, isRandom bool) error {
 
 		err = a.valorantAPIContext.SetAccountLoadout(data.LoadoutData, localPlayer)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println("Set Account Loadout Error", err, stack.Trace())
 			return err
 		}
 
@@ -794,7 +853,7 @@ func (a *App) onMatchEnd(lastMatchData *valorantapi.MatchData) {
 		a.randomizeLoadout()
 
 	} else {
-		fmt.Println(err)
+		fmt.Println("Read Settings Error", err, stack.Trace())
 	}
 
 }
@@ -813,7 +872,7 @@ func (a *App) updateMatchData() *valorantapi.MatchData {
 
 		data, err := a.valorantAPIContext.GetGameData(true)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println("Get Game Data Error", err, stack.Trace())
 			return nil
 		}
 
@@ -835,7 +894,7 @@ func (a *App) updateMatchData() *valorantapi.MatchData {
 		readData := map[string]LastSeenObject{}
 		err = lastSeenStore.readJSON(&readData)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println("Read Last Seen Error", err, stack.Trace())
 		}
 
 		for i, v := range data.AllyTeam.Players {
@@ -858,20 +917,20 @@ func (a *App) updateMatchData() *valorantapi.MatchData {
 }
 
 func randRange(min, max int) int {
-	return rand.Intn(max-min) + min
+	return rand.IntN(max-min) + min
 }
 
 func (a *App) ExitCoreGame() error {
 
 	LocalPlayer, err := a.valorantAPIContext.GetLocalPlayerContext()
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Get Local Player Context Error:", err, stack.Trace())
 		return err
 	}
 
 	CurrentMatch, err := a.valorantAPIContext.GetCurrentGamePlayer(LocalPlayer)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Get Current Game Player Error:", err, stack.Trace())
 		return err
 	}
 
@@ -889,13 +948,13 @@ func (a *App) ExitPregame() error {
 
 	LocalPlayer, err := a.valorantAPIContext.GetLocalPlayerContext()
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Get Local Player Context Error:", err, stack.Trace())
 		return err
 	}
 
 	CurrentMatch, err := a.valorantAPIContext.GetCurrentGamePlayer(LocalPlayer)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Get Current Game Player Error:", err, stack.Trace())
 		return err
 	}
 
@@ -915,13 +974,13 @@ func (a *App) SelectRandomAgent() error {
 
 		LocalPlayer, err := a.valorantAPIContext.GetLocalPlayerContext()
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println("Get Local Player Context Error:", err, stack.Trace())
 			return err
 		}
 
 		CurrentMatch, err := a.valorantAPIContext.GetCurrentGamePlayer(LocalPlayer)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println("Get Current Game Player Error:", err, stack.Trace())
 			return err
 		}
 
@@ -929,7 +988,7 @@ func (a *App) SelectRandomAgent() error {
 
 			data, err := a.valorantAPIContext.GetPreGameData(CurrentMatch.PregameMatchID)
 			if err != nil {
-				fmt.Println(err)
+				fmt.Println("Get Pregame Data Error:", err, stack.Trace())
 				return err
 			}
 
@@ -938,7 +997,6 @@ func (a *App) SelectRandomAgent() error {
 				AgentLookup := map[string]bool{}
 
 				for _, v := range data.AllyTeam.Players {
-					fmt.Println(v.CharacterID)
 					AgentLookup[string(v.CharacterID)] = true
 				}
 
@@ -946,7 +1004,6 @@ func (a *App) SelectRandomAgent() error {
 				for i, v := range OwnedAgentLookup {
 					if !AgentLookup[i] {
 						CopyTable = append(CopyTable, v)
-						fmt.Println(i)
 					}
 				}
 

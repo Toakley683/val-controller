@@ -2,15 +2,14 @@ package valorantapi
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 )
 
 var OwnedWeapons map[string]*WeaponChromaID
 
-func (context ValorantAPIContext) GetOwnedWeaponChromas() (map[string]*WeaponChromaID, error) {
+func (context ValorantAPIContext) GetOwnedWeaponChromas(useCache bool) (map[string]*WeaponChromaID, error) {
 
-	if OwnedWeapons != nil {
+	if OwnedWeapons != nil && useCache {
 		return OwnedWeapons, nil
 	}
 
@@ -60,8 +59,6 @@ func (context ValorantAPIContext) GetOwnedWeaponChromas() (map[string]*WeaponChr
 
 	}
 
-	fmt.Println(OwnedWeaponLookup)
-
 	OwnedWeapons = OwnedWeaponLookup
 
 	return OwnedWeaponLookup, nil
@@ -70,9 +67,9 @@ func (context ValorantAPIContext) GetOwnedWeaponChromas() (map[string]*WeaponChr
 
 var OwnedWeaponSkins map[string]*WeaponSkinID
 
-func (context ValorantAPIContext) GetOwnedWeaponSkins() (map[string]*WeaponSkinID, error) {
+func (context ValorantAPIContext) GetOwnedWeaponSkins(useCache bool) (map[string]*WeaponSkinID, error) {
 
-	if OwnedWeaponSkins != nil {
+	if OwnedWeaponSkins != nil && useCache {
 		return OwnedWeaponSkins, nil
 	}
 
@@ -121,8 +118,6 @@ func (context ValorantAPIContext) GetOwnedWeaponSkins() (map[string]*WeaponSkinI
 		OwnedWeaponLookup[v.ItemID] = &skinID
 
 	}
-
-	fmt.Println(OwnedWeaponLookup)
 
 	OwnedWeaponSkins = OwnedWeaponLookup
 

@@ -627,6 +627,11 @@
         color: hsla(180, 67%, 99%, 0.7);
         font-weight: 700;
         font-family: 'DMSans', sans-serif;
+
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        width: 100%;
     }
 
     .inventory-side {

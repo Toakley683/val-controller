@@ -242,6 +242,10 @@ func (context ValorantAPIContext) GetCurrentAndPeakRank(player *ValorantPlayerCo
 	currentRank := Data.LatestCompetitiveUpdate.TierAfterUpdate
 	currentSeason := Data.LatestCompetitiveUpdate.SeasonID
 
+	if currentSeason == "" {
+		currentSeason = "564d8e28-c226-3180-6285-e48a390db8b1"
+	}
+
 	highestRank := 0
 	highestSeasonID := ""
 
