@@ -130,7 +130,7 @@ jobs:
           
           # Set output paths
           echo "binary-path=build/bin/$appName.exe" >> $env:GITHUB_OUTPUT
-          echo "installer-path=build/bin/$appName-installer.exe" >> $env:GITHUB_OUTPUT
+          echo "installer-path=build/bin/$appName-amd64-installer.exe" >> $env:GITHUB_OUTPUT
           
           # List artifacts for debugging
           Write-Host "Build artifacts:"
