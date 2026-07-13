@@ -48,12 +48,9 @@ jobs:
           choco install upx -y
           upx --version
 
-      # Install NSIS and add to PATH
+      # Install NSIS
       - name: Install NSIS
-        run: |
-          choco install nsis -y
-          echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          echo "C:\Program Files\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        uses: negrutiu/nsis-install@v2
 
       # Verify NSIS installation
       - name: Verify NSIS
@@ -67,7 +64,7 @@ jobs:
           go install github.com/wailsapp/wails/v2/cmd/wails@latest
           wails version
 
-      # Get or Create Release using action
+      # Get or Create Release
       - name: Get Release
         id: get_release
         uses: cardinalby/git-get-release-action@v1
