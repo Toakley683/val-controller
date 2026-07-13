@@ -5,13 +5,13 @@
 !include "FileFunc.nsh"
 
 !ifndef INFO_PROJECTNAME
-    !define INFO_PROJECTNAME "val-controller"
+    !define INFO_PROJECTNAME "Valorant Controller"
 !endif
 !ifndef INFO_COMPANYNAME
-    !define INFO_COMPANYNAME "val-controller"
+    !define INFO_COMPANYNAME "Valorant Controller"
 !endif
 !ifndef INFO_PRODUCTNAME
-    !define INFO_PRODUCTNAME "val-controller"
+    !define INFO_PRODUCTNAME "Valorant Controller"
 !endif
 !ifndef INFO_PRODUCTVERSION
     !define INFO_PRODUCTVERSION "1.0.0"
