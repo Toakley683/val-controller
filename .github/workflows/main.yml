@@ -4,6 +4,22 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name for release (e.g., v1.0.0)'
+        required: true
+        type: string
+      draft:
+        description: 'Create as draft release'
+        required: false
+        default: false
+        type: boolean
+      prerelease:
+        description: 'Mark as prerelease'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build:
@@ -12,27 +28,74 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
-      - id: build
-        uses: ovftank/wails-build-windows@v1.0.1
+      # Setup Node.js (required for Wails)
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
 
+      # Setup Go
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      # Install UPX
+      - name: Install UPX
+        run: |
+          choco install upx -y
+          upx --version
+
+      # Install NSIS
+      - name: Install NSIS
+        run: |
+          choco install nsis -y
+          makensis -VERSION
+
+      # Install Wails CLI
+      - name: Install Wails
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@latest
+          wails version
+
+      # Build with Wails using UPX compression
+      - name: Build Wails Application
+        id: build
+        run: |
+          # Build the application with UPX compression
+          wails build -platform windows/amd64 -nsis -upx
+          
+          # Set output paths
+          echo "binary-path=build/bin/your-app-name.exe" >> $env:GITHUB_OUTPUT
+          echo "installer-path=build/bin/your-app-name-installer.exe" >> $env:GITHUB_OUTPUT
+
+      # Optional: Verify the build artifacts
+      - name: List build artifacts
+        run: |
+          dir build\bin
+          dir build\windows\installer
+
+      # Create release with manual inputs or tag
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-          draft: false
-          prerelease: false
+          tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
+          name: Release ${{ github.event.inputs.tag_name || github.ref_name }}
+          draft: ${{ github.event.inputs.draft || false }}
+          prerelease: ${{ github.event.inputs.prerelease || false }}
           files: |
             ${{ steps.build.outputs.installer-path }}
             ${{ steps.build.outputs.binary-path }}
           body: |
-            ## Changes in ${{ github.ref_name }}
+            ## Changes in ${{ github.event.inputs.tag_name || github.ref_name }}
 
             - Built from commit: ${{ github.sha }}
             - Build date: ${{ github.run_number }}
             - Workflow: ${{ github.workflow }}
+            - UPX Compression: Enabled
+            - NSIS Installer: Included
 
             ### Download
-            # - `${{ steps.build.outputs.binary-path }}` - Application executable
+            - `${{ steps.build.outputs.binary-path }}` - Application executable (UPX compressed)
             - `${{ steps.build.outputs.installer-path }}` - NSIS installer
