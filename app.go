@@ -513,6 +513,10 @@ func (a *App) GetSettings() map[string]bool {
 		return nil
 	}
 
+	if storeData.SavedSettings == nil {
+		return map[string]bool{}
+	}
+
 	return storeData.SavedSettings
 
 }
@@ -524,6 +528,10 @@ func (a *App) SaveSettings(val map[string]bool) error {
 	if err != nil {
 		fmt.Println("Read Settings Error", err, stack.Trace())
 		return err
+	}
+
+	if storeData.SavedSettings == nil {
+		storeData.SavedSettings = map[string]bool{}
 	}
 
 	for i, v := range val {

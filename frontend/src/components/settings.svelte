@@ -34,6 +34,10 @@
 
         GetSettings().then( ( data: Record<string, boolean>) => {
 
+            if ( data == null ) {
+                return
+            }
+
             settings = data
 
         })
@@ -46,6 +50,10 @@
 
     function updateSettings( SettingName: string, value: boolean ) {
 
+        if ( settings == null ) {
+            settings = {}
+        }
+
         settings[SettingName] = value
         
         SaveSettings(settings)
@@ -53,7 +61,12 @@
     }
 
     function getSetting( SettingName: string ): Boolean {
-        return settings[SettingName] || false
+
+        if (settings == null) {
+            return false
+        }
+
+        return settings[SettingName] ?? false
     }
     
     var isUpdating: boolean = false
@@ -101,7 +114,7 @@
                 on:click={ () => { updateSettings("AlwaysOnTop", !getSetting("AlwaysOnTop")) } }
                 on:keyup={ () => { updateSettings("AlwaysOnTop", !getSetting("AlwaysOnTop")) } }
             >   
-                <div class="toggle_thumb { settings["AlwaysOnTop"] ? "on" : "off" }"/>
+                <div class="toggle_thumb { settings[ "AlwaysOnTop" ] ?? false ? "on" : "off" }"/>
             </value>
         </div>
 
@@ -112,7 +125,7 @@
                 on:click={ () => { updateSettings("SendAnonymousData", !getSetting("SendAnonymousData")) } }
                 on:keyup={ () => { updateSettings("SendAnonymousData", !getSetting("SendAnonymousData")) } }
             >
-                <div class="toggle_thumb { settings["SendAnonymousData"] ? "on" : "off" }"/>
+                <div class="toggle_thumb { settings[ "SendAnonymousData" ] ?? false ? "on" : "off" }"/>
             </value>
         </div>
 
