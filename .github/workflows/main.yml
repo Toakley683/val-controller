@@ -59,6 +59,11 @@ jobs:
           echo "C:\ProgramData\chocolatey\lib\nsis" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           wails version
 
+      # Wails Doctor
+      - name: Check Wails Doctor
+        run: |
+          wails doctor
+
       # Build with Wails using UPX compression
       - name: Build Wails Application
         id: build
@@ -67,8 +72,8 @@ jobs:
           wails build -platform windows/amd64 -nsis -upx
           
           # Set output paths
-          echo "binary-path=build/bin/your-app-name.exe" >> $env:GITHUB_OUTPUT
-          echo "installer-path=build/bin/your-app-name-installer.exe" >> $env:GITHUB_OUTPUT
+          echo "binary-path=build/bin/val-controller.exe" >> $env:GITHUB_OUTPUT
+          echo "installer-path=build/bin/val-controller-amd64-installer.exe" >> $env:GITHUB_OUTPUT
 
       # Optional: Verify the build artifacts
       - name: List build artifacts
