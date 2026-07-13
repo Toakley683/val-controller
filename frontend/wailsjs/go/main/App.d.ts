@@ -9,6 +9,8 @@ export function CloseWindow():Promise<void>;
 
 export function DeleteSavedLoadout(arg1:string):Promise<void>;
 
+export function DownloadInstaller():Promise<string>;
+
 export function ExitCoreGame():Promise<void>;
 
 export function ExitPregame():Promise<void>;
@@ -19,14 +21,22 @@ export function GetLoadouts():Promise<main.UpdateLoadoutObj>;
 
 export function GetMatch():Promise<valorantapi.MatchData>;
 
+export function GetSettings():Promise<Record<string, boolean>>;
+
 export function LoadSavedLoadout(arg1:string,arg2:boolean):Promise<void>;
 
 export function MinimizeWindow():Promise<void>;
 
 export function SaveCurrentLoadout(arg1:string):Promise<void>;
 
+export function SaveSettings(arg1:Record<string, boolean>):Promise<void>;
+
 export function SelectRandomAgent():Promise<void>;
 
 export function SetWindowSize(arg1:number,arg2:number):Promise<void>;
 
+export function StartUpdate():Promise<void>;
+
 export function UpdateCurrentClient():Promise<void>;
+
+export function UpdateSettings():Promise<void>;

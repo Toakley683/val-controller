@@ -9,11 +9,13 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"sort"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/go-stack/stack"
@@ -23,15 +25,17 @@ import (
 )
 
 type ClientUpdate struct {
-	IsLoaded   bool   `json:"isLoaded"`
-	IsInMatch  bool   `json:"isInMatch"`
-	IsGameOpen bool   `json:"gameOpen"`
-	TokenTest  string `json:"tokenTest"`
+	IsLatestUpdate bool   `json:"isLatest"`
+	IsLoaded       bool   `json:"isLoaded"`
+	IsInMatch      bool   `json:"isInMatch"`
+	IsGameOpen     bool   `json:"gameOpen"`
+	TokenTest      string `json:"tokenTest"`
 }
 
 type SettingsStoreData struct {
 	IsRandomized          bool            `json:"isRandomized"`
 	RandomSelectedWeapons map[string]bool `json:"randomSelected"`
+	SavedSettings         map[string]bool `json:"settings"`
 }
 
 // App struct
@@ -39,6 +43,7 @@ type App struct {
 	ctx                context.Context
 	blockMainThread    chan struct{}
 	clientUpdate       ClientUpdate
+	isLatest           bool
 	valorantAPIContext *valorantapi.ValorantAPIContext
 }
 
@@ -85,13 +90,13 @@ func init() {
 
 }
 
-func checkForUpdates() error {
+var NewUpdateURL string
 
-	fmt.Println("Current commit:", buildCommit)
-	fmt.Println("Latest commit:", buildCommit)
+func (a *App) checkForUpdates() error {
 
 	req, err := http.NewRequest("GET", "https://api.github.com/repos/Toakley683/val-controller/releases/latest", nil)
 	if err != nil {
+		a.clientUpdate.IsLatestUpdate = true
 		return err
 	}
 
@@ -99,6 +104,7 @@ func checkForUpdates() error {
 
 	resp, err := client.Do(req)
 	if err != nil {
+		a.clientUpdate.IsLatestUpdate = true
 		return err
 	}
 
@@ -106,6 +112,7 @@ func checkForUpdates() error {
 
 	FullBody, err := io.ReadAll(resp.Body)
 	if err != nil {
+		a.clientUpdate.IsLatestUpdate = true
 		return err
 	}
 
@@ -116,11 +123,17 @@ func checkForUpdates() error {
 		return err
 	}
 
+	fmt.Println("Current commit:", buildCommit)
+	fmt.Println("Latest commit:", Response.ID)
+
 	if strconv.Itoa(Response.ID) != buildCommit && len(Response.Assets) > 0 {
 
 		fmt.Println("Update found")
 
-		fmt.Println(Response.Assets[0].BrowserDownloadURL)
+		NewUpdateURL = Response.Assets[0].BrowserDownloadURL
+
+		a.clientUpdate.IsLatestUpdate = false
+		return nil
 
 	} else {
 
@@ -128,15 +141,14 @@ func checkForUpdates() error {
 
 	}
 
+	a.clientUpdate.IsLatestUpdate = true
+
 	return nil
 
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
-
-	checkForUpdates()
-
 	return &App{}
 }
 
@@ -267,6 +279,7 @@ type LastSeenObject struct {
 }
 
 var lastSubject string = ""
+var appDataPath string
 
 // startup is called when the app starts. The context is saved
 // so we can call the runtime methods
@@ -274,6 +287,8 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
 	a.clientUpdate = ClientUpdate{}
+
+	a.checkForUpdates()
 
 	// Setup jsonFile for saving loadouts
 
@@ -283,7 +298,7 @@ func (a *App) startup(ctx context.Context) {
 		return
 	}
 
-	appDataPath := filepath.Join(configDir, "ValorantController")
+	appDataPath = filepath.Join(configDir, "ValorantController")
 
 	loadoutStore, err = newDataStore(appDataPath, "loadoutStore.json")
 	if err != nil {
@@ -302,6 +317,8 @@ func (a *App) startup(ctx context.Context) {
 		runtime.LogError(ctx, "Failed to make data store: "+err.Error())
 		return
 	}
+
+	a.UpdateSettings()
 
 	go func() {
 
@@ -484,8 +501,147 @@ func (a *App) UpdateCurrentClient() {
 }
 
 func (a *App) updateClient(clientUpdate ClientUpdate) {
-
 	runtime.EventsEmit(a.ctx, "updateClient", clientUpdate)
+}
+
+func (a *App) GetSettings() map[string]bool {
+
+	storeData := SettingsStoreData{}
+	err := settingsStore.readJSON(&storeData)
+	if err != nil {
+		fmt.Println("Read Settings Error", err, stack.Trace())
+		return nil
+	}
+
+	return storeData.SavedSettings
+
+}
+
+func (a *App) SaveSettings(val map[string]bool) error {
+
+	storeData := SettingsStoreData{}
+	err := settingsStore.readJSON(&storeData)
+	if err != nil {
+		fmt.Println("Read Settings Error", err, stack.Trace())
+		return err
+	}
+
+	for i, v := range val {
+
+		storeData.SavedSettings[i] = v
+
+	}
+
+	err = settingsStore.writeJSON(storeData)
+	if err != nil {
+		fmt.Println("Write Settings Error", err, stack.Trace())
+		return err
+	}
+
+	err = a.UpdateSettings()
+	if err != nil {
+		fmt.Println("Updating Settings Error", err, stack.Trace())
+		return err
+	}
+
+	return nil
+
+}
+
+func (a *App) UpdateSettings() error {
+
+	storeData := SettingsStoreData{}
+	err := settingsStore.readJSON(&storeData)
+	if err != nil {
+		fmt.Println("Read Settings Error", err, stack.Trace())
+		return err
+	}
+
+	runtime.WindowSetAlwaysOnTop(a.ctx, storeData.SavedSettings["AlwaysOnTop"] || false)
+
+	fmt.Println(storeData.SavedSettings)
+
+	return nil
+
+}
+
+func (a *App) DownloadInstaller() (string, error) {
+
+	fmt.Println("Starting installer download..")
+
+	if err := os.MkdirAll(appDataPath, os.ModePerm); err != nil {
+		return "", fmt.Errorf("Failed to get config dir: " + err.Error())
+	}
+
+	fileName := "installer.exe"
+	filePath := filepath.Join(appDataPath, fileName)
+
+	resp, err := http.Get(NewUpdateURL)
+	if err != nil {
+		return filePath, err
+	}
+
+	defer resp.Body.Close()
+
+	FullBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return filePath, err
+	}
+
+	file, err := os.Create(filePath)
+	if err != nil {
+		return filePath, err
+	}
+
+	defer file.Close()
+
+	file.Write(FullBody)
+	fmt.Println("Finished installer download ( 100% )")
+
+	return filePath, nil
+
+}
+
+func (a *App) StartUpdate() error {
+
+	fmt.Println("Starting update..")
+
+	if NewUpdateURL != "" {
+
+		path, err := a.DownloadInstaller()
+		if err != nil {
+			return err
+		}
+
+		if path != "" {
+
+			fmt.Println("Start app")
+
+			installerCMD := fmt.Sprintf(`Start-Process -FilePath "%s" -Verb RunAs`, path)
+
+			cmd := exec.Command("powershell.exe", "-Command", installerCMD)
+
+			cmd.SysProcAttr = &syscall.SysProcAttr{
+				HideWindow:    true,
+				CreationFlags: 0x08000000,
+			}
+
+			err = cmd.Start()
+			if err != nil {
+				return err
+			}
+
+		}
+
+		//runtime.BrowserOpenURL(a.ctx, NewUpdateURL)
+
+	} else {
+
+		runtime.BrowserOpenURL(a.ctx, "https://www.github.com/Toakley683/val-controller/releases/latest")
+
+	}
+
+	return nil
 
 }
 

@@ -9,7 +9,7 @@
   import { onMount, setContext } from 'svelte';
   import { writable } from 'svelte/store';
 
-  import { EventsOn, EventsOff } from '../wailsjs/runtime';
+  import { EventsOn, EventsOff, BrowserOpenURL } from '../wailsjs/runtime';
 
   import SettingsIcon from "./components/icons/settings.svelte"
   import Endpoints from './components/icons/endpoints.svelte';
@@ -23,6 +23,7 @@
     
   interface ClientUpdate {
     isLoaded: boolean;
+	  isLatest: boolean;
     isInMatch: boolean;
     gameOpen: boolean;
     tokenTest: string;
@@ -30,6 +31,7 @@
 
   let clientUpdate: ClientUpdate = {
     isLoaded: false,
+    isLatest: true,
     isInMatch: false,
     gameOpen: false,
     tokenTest: ""

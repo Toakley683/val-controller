@@ -4,6 +4,7 @@
     import type { Writable } from 'svelte/store';
         
     interface ClientUpdate {
+        isLatest: boolean;
         isLoaded: boolean;
         isInMatch: boolean;
         gameOpen: boolean;

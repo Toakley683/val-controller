@@ -14,6 +14,10 @@ export function DeleteSavedLoadout(arg1) {
   return window['go']['main']['App']['DeleteSavedLoadout'](arg1);
 }
 
+export function DownloadInstaller() {
+  return window['go']['main']['App']['DownloadInstaller']();
+}
+
 export function ExitCoreGame() {
   return window['go']['main']['App']['ExitCoreGame']();
 }
@@ -34,6 +38,10 @@ export function GetMatch() {
   return window['go']['main']['App']['GetMatch']();
 }
 
+export function GetSettings() {
+  return window['go']['main']['App']['GetSettings']();
+}
+
 export function LoadSavedLoadout(arg1, arg2) {
   return window['go']['main']['App']['LoadSavedLoadout'](arg1, arg2);
 }
@@ -46,6 +54,10 @@ export function SaveCurrentLoadout(arg1) {
   return window['go']['main']['App']['SaveCurrentLoadout'](arg1);
 }
 
+export function SaveSettings(arg1) {
+  return window['go']['main']['App']['SaveSettings'](arg1);
+}
+
 export function SelectRandomAgent() {
   return window['go']['main']['App']['SelectRandomAgent']();
 }
@@ -54,6 +66,14 @@ export function SetWindowSize(arg1, arg2) {
   return window['go']['main']['App']['SetWindowSize'](arg1, arg2);
 }
 
+export function StartUpdate() {
+  return window['go']['main']['App']['StartUpdate']();
+}
+
 export function UpdateCurrentClient() {
   return window['go']['main']['App']['UpdateCurrentClient']();
+}
+
+export function UpdateSettings() {
+  return window['go']['main']['App']['UpdateSettings']();
 }
