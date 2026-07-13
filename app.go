@@ -116,7 +116,7 @@ func checkForUpdates() error {
 		return err
 	}
 
-	if strconv.Itoa(Response.ID) != buildCommit {
+	if strconv.Itoa(Response.ID) != buildCommit && len(Response.Assets) > 0 {
 
 		fmt.Println("Update found")
 

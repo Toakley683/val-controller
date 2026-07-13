@@ -126,8 +126,7 @@ jobs:
           Write-Host "Building with Release ID: $RELEASE_ID"
           
           # Build with UPX compression and inject variables
-          wails build -platform windows/amd64 -nsis -upx `
-            -ldflags "-X main.version=$VERSION -X main.buildTime=$BUILD_TIME -X main.commitSha=$COMMIT_SHA -X main.buildCommit=$RELEASE_ID"
+          wails build -platform windows/amd64 -nsis -upx -ldflags "-X main.buildCommit=$RELEASE_ID"
           
           # Set output paths
           echo "binary-path=build/bin/$appName.exe" >> $env:GITHUB_OUTPUT
