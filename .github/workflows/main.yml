@@ -50,9 +50,7 @@ jobs:
 
       # Install NSIS
       - name: Install NSIS
-        uses: kordb/setup-nsis@v1
-        with:
-          version: 'latest'
+        uses: negrutiu/nsis-install@v2
 
       # Install Wails CLI
       - name: Install Wails
