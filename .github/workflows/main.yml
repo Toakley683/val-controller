@@ -26,16 +26,15 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: write
-      id-token: write
 
     steps:
       - uses: actions/checkout@v4
 
-      # Setup Node.js (required for Wails)
+      # Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: 'latest'
 
       # Setup Go
       - name: Setup Go
@@ -49,66 +48,101 @@ jobs:
           choco install upx -y
           upx --version
 
-      # Install NSIS
+      # Install NSIS and add to PATH
       - name: Install NSIS
-        uses: negrutiu/nsis-install@v2
+        run: |
+          choco install nsis -y
+          echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          echo "C:\Program Files\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      # Verify NSIS installation
+      - name: Verify NSIS
+        run: |
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+          makensis -VERSION
 
       # Install Wails CLI
-      - name: Install Wails 
+      - name: Install Wails
         run: |
           go install github.com/wailsapp/wails/v2/cmd/wails@latest
-          echo "C:\ProgramData\chocolatey\lib\nsis" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           wails version
 
-      # Wails Doctor
-      - name: Check Wails Doctor
-        run: |
-          wails doctor
-
-      # Get Release ID
-      - name: Get Release ID
+      # Get or Create Release using action
+      - name: Get Release
         id: get_release
+        uses: cardinalby/git-get-release-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag: ${{ github.event.inputs.tag_name || github.ref_name }}
+          doNotFailIfNotFound: true
+
+      - name: Create Release if Not Exists
+        id: create_release
+        if: steps.get_release.outputs.id == ''
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
+          release_name: Release ${{ github.event.inputs.tag_name || github.ref_name }}
+          draft: ${{ github.event.inputs.draft || false }}
+          prerelease: ${{ github.event.inputs.prerelease || false }}
+          body: |
+            Release ${{ github.event.inputs.tag_name || github.ref_name }}
+            
+            Built from commit: ${{ github.sha }}
+            Build date: ${{ github.run_number }}
+            Workflow: ${{ github.workflow }}
+
+      # Set Release ID for subsequent steps
+      - name: Set Release ID
+        id: set_release_id
         run: |
-          # Determine the tag name
-          if ("${{ github.event.inputs.tag_name }}" -ne "") {
-            $TAG_NAME = "${{ github.event.inputs.tag_name }}"
+          if ("${{ steps.get_release.outputs.id }}" -ne "") {
+            $RELEASE_ID = "${{ steps.get_release.outputs.id }}"
           } else {
-            $TAG_NAME = "${{ github.ref_name }}"
+            $RELEASE_ID = "${{ steps.create_release.outputs.id }}"
           }
-          
-          # Get the release ID
-          $RELEASE_ID = gh api repos/${{ github.repository }}/releases/tags/$TAG_NAME --jq '.id'
-          
-          # Fallback: If release doesn't exist yet, create it first
-          if (-not $RELEASE_ID) {
-            Write-Host "Release not found, creating a draft release first..."
-            $RELEASE_ID = gh api repos/${{ github.repository }}/releases -X POST -f tag_name="$TAG_NAME" -f name="Release $TAG_NAME" -f draft=true --jq '.id'
-          }
-          
           echo "release-id=$RELEASE_ID" >> $env:GITHUB_OUTPUT
           echo "Release ID: $RELEASE_ID"
 
-      # Build with Wails using UPX compression
+      # Build Wails Application with Release ID
       - name: Build Wails Application
         id: build
         run: |
-          # Build the application with UPX compression
-          wails build -platform windows/amd64 -nsis -upx -ldflags "-X main.buildCommit=$RELEASE_ID"
+          # Add NSIS to PATH for this session
+          $env:Path += ";C:\Program Files (x86)\NSIS;C:\Program Files\NSIS"
+          
+          # Gather build information
+          $VERSION = "${{ github.ref_name }}" -replace '^v', ''
+          if ([string]::IsNullOrEmpty($VERSION)) { $VERSION = "dev" }
+          
+          $BUILD_TIME = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
+          $COMMIT_SHA = "${{ github.sha }}"
+          $RELEASE_ID = "${{ steps.set_release_id.outputs.release-id }}"
+          
+          # Get app name from wails.json
+          $wailsConfig = Get-Content wails.json | ConvertFrom-Json
+          $appName = $wailsConfig.name
+          
+          Write-Host "Building with Release ID: $RELEASE_ID"
+          
+          # Build with UPX compression and inject variables
+          wails build -platform windows/amd64 -nsis -upx `
+            -ldflags "-X main.version=$VERSION -X main.buildTime=$BUILD_TIME -X main.commitSha=$COMMIT_SHA -X main.buildCommit=$RELEASE_ID"
           
           # Set output paths
-          echo "binary-path=build/bin/val-controller.exe" >> $env:GITHUB_OUTPUT
-          echo "installer-path=build/bin/val-controller-amd64-installer.exe" >> $env:GITHUB_OUTPUT
-
-      # Optional: Verify the build artifacts
-      - name: List build artifacts
-        run: |
+          echo "binary-path=build/bin/$appName.exe" >> $env:GITHUB_OUTPUT
+          echo "installer-path=build/bin/$appName-installer.exe" >> $env:GITHUB_OUTPUT
+          
+          # List artifacts for debugging
+          Write-Host "Build artifacts:"
           dir build\bin
-          dir build\windows\installer
 
-      # Create release with manual inputs or tag
-      - uses: softprops/action-gh-release@v2
+      # Upload assets to release
+      - name: Upload Assets to Release
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
           name: Release ${{ github.event.inputs.tag_name || github.ref_name }}
@@ -116,16 +150,17 @@ jobs:
           prerelease: ${{ github.event.inputs.prerelease || false }}
           files: |
             ${{ steps.build.outputs.installer-path }}
-            # ${{ steps.build.outputs.binary-path }}
+            ${{ steps.build.outputs.binary-path }}
           body: |
             ## Changes in ${{ github.event.inputs.tag_name || github.ref_name }}
 
             - Built from commit: ${{ github.sha }}
             - Build date: ${{ github.run_number }}
             - Workflow: ${{ github.workflow }}
+            - Release ID: ${{ steps.set_release_id.outputs.release-id }}
             - UPX Compression: Enabled
             - NSIS Installer: Included
 
             ### Download
-            # - `${{ steps.build.outputs.binary-path }}` - Application executable (UPX compressed)
+            - `${{ steps.build.outputs.binary-path }}` - Application executable (UPX compressed)
             - `${{ steps.build.outputs.installer-path }}` - NSIS installer
