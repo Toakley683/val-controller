@@ -50,9 +50,9 @@ jobs:
 
       # Install NSIS
       - name: Install NSIS
-        run: |
-          choco install nsis -y
-          makensis /VERSION
+        uses: kordb/setup-nsis@v1
+        with:
+          version: 'latest'
 
       # Install Wails CLI
       - name: Install Wails
