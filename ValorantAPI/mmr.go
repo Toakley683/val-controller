@@ -3,6 +3,7 @@ package valorantapi
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"strconv"
 	"time"
@@ -166,7 +167,7 @@ type valorantMMRData struct {
 	} `json:"QueueSkills"`
 }
 
-/* [ - Get Pregame Data - ] */
+/* [ - Get MMR Data - ] */
 /* [ URL: 'https://glz-{Region}-1.{Shard}.a.pvp.net/pregame/v1/matches/{MATCH ID}' ] */
 func (context ValorantAPIContext) getMMRData(player *ValorantPlayerContext) (*valorantMMRData, error) {
 
@@ -204,6 +205,8 @@ func (context ValorantAPIContext) getMMRData(player *ValorantPlayerContext) (*va
 		return nil, err
 	}
 
+	fmt.Println(Response)
+
 	return Response, nil
 
 }
@@ -238,6 +241,8 @@ func (context ValorantAPIContext) GetCurrentAndPeakRank(player *ValorantPlayerCo
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Println(Data)
 
 	currentRank := Data.LatestCompetitiveUpdate.TierAfterUpdate
 	currentSeason := Data.LatestCompetitiveUpdate.SeasonID
