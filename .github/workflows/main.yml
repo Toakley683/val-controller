@@ -52,7 +52,7 @@ jobs:
       - name: Install NSIS
         run: |
           choco install nsis -y
-          makensis -VERSION
+          makensis /VERSION
 
       # Install Wails CLI
       - name: Install Wails
