@@ -2,13 +2,17 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/rand/v2"
+	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -38,9 +42,101 @@ type App struct {
 	valorantAPIContext *valorantapi.ValorantAPIContext
 }
 
+var (
+	buildCommit = ""
+)
+
+type GithubUpdateStruct struct {
+	URL         string    `json:"url"`
+	ID          int       `json:"id"`
+	TagName     string    `json:"tag_name"`
+	Name        string    `json:"name"`
+	Draft       bool      `json:"draft"`
+	Immutable   bool      `json:"immutable"`
+	Prerelease  bool      `json:"prerelease"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	PublishedAt time.Time `json:"published_at"`
+	Assets      []struct {
+		URL                string `json:"url"`
+		ID                 int    `json:"id"`
+		NodeID             string `json:"node_id"`
+		Name               string `json:"name"`
+		Label              string `json:"label"`
+		ContentType        string `json:"content_type"`
+		State              string `json:"state"`
+		Size               int    `json:"size"`
+		DownloadCount      int    `json:"download_count"`
+		BrowserDownloadURL string `json:"browser_download_url"`
+	} `json:"assets"`
+}
+
+var (
+	client http.Client
+)
+
+func init() {
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+
+	client = http.Client{Transport: tr}
+
+}
+
+func checkForUpdates() error {
+
+	fmt.Println("Current commit:", buildCommit)
+	fmt.Println("Latest commit:", buildCommit)
+
+	req, err := http.NewRequest("GET", "https://api.github.com/repos/Toakley683/val-controller/releases/latest", nil)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	FullBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	Response := &GithubUpdateStruct{}
+
+	err = json.Unmarshal(FullBody, &Response)
+	if err != nil {
+		return err
+	}
+
+	if strconv.Itoa(Response.ID) != buildCommit {
+
+		fmt.Println("Update found")
+
+		fmt.Println(Response.Assets[0].BrowserDownloadURL)
+
+	} else {
+
+		fmt.Println("No update found, continuing..")
+
+	}
+
+	return nil
+
+}
+
 // NewApp creates a new App application struct
 func NewApp() *App {
-	fmt.Println("Test config")
+
+	checkForUpdates()
+
 	return &App{}
 }
 
