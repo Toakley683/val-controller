@@ -40,6 +40,7 @@ type App struct {
 
 // NewApp creates a new App application struct
 func NewApp() *App {
+	fmt.Println("Test config")
 	return &App{}
 }
 
