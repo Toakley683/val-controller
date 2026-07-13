@@ -121,7 +121,7 @@ jobs:
           
           # Get app name from wails.json
           $wailsConfig = Get-Content wails.json | ConvertFrom-Json
-          $appName = valorant-controller
+          $appName = "valorant-controller"
           
           Write-Host "Building with Release ID: $RELEASE_ID"
           
