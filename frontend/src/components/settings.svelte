@@ -167,7 +167,7 @@
     
     .update-setting {
 
-        margin-top: 0.25rem;
+        margin-top: 0.2rem;
 
         user-select: none;
 
@@ -231,6 +231,8 @@
         color: hsla(180, 67%, 99%, 0.7);
         font-weight: 700;
         font-family: 'DMSans', sans-serif;
+
+        margin-top: 0.2rem;
 
         border-radius: 0.5rem;
 
@@ -298,7 +300,7 @@
         content: "";
         position: absolute;
 
-        top: 0.5rem;
+        top: 0.7rem;
 
         width: 1px;
         height: 1.5rem;
