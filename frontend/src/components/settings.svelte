@@ -116,8 +116,7 @@
             </value>
         </div>
 
-        <!--
-        <div class ="setting">
+        <!--<div class ="setting">
             <setting_name>Is Latest Version?</setting_name>
             <value 
                 class="toggle"

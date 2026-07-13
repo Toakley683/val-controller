@@ -631,6 +631,10 @@ func (a *App) StartUpdate() error {
 				return err
 			}
 
+			go func() {
+				os.Exit(0)
+			}()
+
 		}
 
 		//runtime.BrowserOpenURL(a.ctx, NewUpdateURL)
