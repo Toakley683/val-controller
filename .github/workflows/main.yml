@@ -1,0 +1,38 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - id: build
+        uses: ovftank/wails-build-windows@v1.0.1
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          files: |
+            ${{ steps.build.outputs.installer-path }}
+            ${{ steps.build.outputs.binary-path }}
+          body: |
+            ## Changes in ${{ github.ref_name }}
+
+            - Built from commit: ${{ github.sha }}
+            - Build date: ${{ github.run_number }}
+            - Workflow: ${{ github.workflow }}
+
+            ### Download
+            # - `${{ steps.build.outputs.binary-path }}` - Application executable
+            - `${{ steps.build.outputs.installer-path }}` - NSIS installer
