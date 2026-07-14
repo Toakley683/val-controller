@@ -21,6 +21,7 @@
   import Matches from './components/matches.svelte';
   import Loadouts from './components/loadouts.svelte';
   import Randomizer from './components/randomizer.svelte';
+    import Lineups from './components/lineups.svelte';
     
   interface ClientUpdate {
     isLoaded: boolean;
@@ -69,7 +70,7 @@
     matchs: Menu;
     loadouts: Menu;
     randomizer: Menu;
-    endpoints: Menu;
+    lineups: Menu;
   }
 
   const Menus: Menus = {
@@ -118,8 +119,8 @@
       svg: History,
       color: {r: 212, g: 68, b: 159 },
     },
-    endpoints: {
-      layout: Settings,
+    lineups: {
+      layout: Lineups,
       windowSize: {
         width: 650,
         height: 400
@@ -245,14 +246,14 @@
           <div class="settings-svg"><svelte:component this={Menus.loadouts.svg} /></div>
         </button>
       
-        <!-- History Button -->
+        <!-- Skin Randomizer Button -->
         <button class="normal-button {clientUpdate.isLoaded ? '' : 'tray-inactive'} {CurrentActiveMenu == Menus.randomizer ? 'active' : ''}" on:click={() => changeLayout(Menus.randomizer)}>
           <div class="settings-svg"><svelte:component this={Menus.randomizer.svg} /></div>
         </button>
       
-        <!-- Endpoints Button -->
-        <button class="normal-button {clientUpdate.isLoaded ? '' : 'tray-inactive'} {CurrentActiveMenu == Menus.endpoints ? 'active' : ''}" on:click={() => changeLayout(Menus.endpoints)}>
-          <div><svelte:component this={Menus.endpoints.svg} /></div>
+        <!-- Lineups Button -->
+        <button class="normal-button {clientUpdate.isLoaded ? '' : 'tray-inactive'} {CurrentActiveMenu == Menus.lineups ? 'active' : ''}" on:click={() => changeLayout(Menus.lineups)}>
+          <div><svelte:component this={Menus.lineups.svg} /></div>
         </button>
 
       </div>
