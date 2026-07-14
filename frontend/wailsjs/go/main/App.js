@@ -38,12 +38,20 @@ export function GetMatch() {
   return window['go']['main']['App']['GetMatch']();
 }
 
+export function GetRandomLoadout() {
+  return window['go']['main']['App']['GetRandomLoadout']();
+}
+
 export function GetSettings() {
   return window['go']['main']['App']['GetSettings']();
 }
 
-export function LoadSavedLoadout(arg1, arg2) {
-  return window['go']['main']['App']['LoadSavedLoadout'](arg1, arg2);
+export function LoadRandomLoadout(arg1) {
+  return window['go']['main']['App']['LoadRandomLoadout'](arg1);
+}
+
+export function LoadSavedLoadout(arg1) {
+  return window['go']['main']['App']['LoadSavedLoadout'](arg1);
 }
 
 export function MinimizeWindow() {

@@ -734,9 +734,15 @@ type SavedLoadout struct {
 	LoadoutData valorantapi.ValorantLocalLoadout `json:"LoadoutData"`
 	NameLookup  map[string]string                `json:"NameLookup"`
 }
+
 type UpdateLoadoutObj struct {
-	Loadouts              map[string]SavedLoadout
+	Loadouts       map[string]SavedLoadout
+	CurrentLoadout valorantapi.ValorantLocalLoadout
+}
+
+type UpdateRandomObj struct {
 	CurrentLoadout        valorantapi.ValorantLocalLoadout
+	RandomLoadout         SavedLoadout
 	RandomWeaponsSelected map[string]bool
 	IsRandomSelected      bool
 }
@@ -770,7 +776,7 @@ func (a *App) sendLoadout() error {
 		return err
 	}
 
-	writeData["Random"] = RandomLoadout
+	//writeData["Random"] = RandomLoadout
 
 	storeData := SettingsStoreData{}
 	err = settingsStore.readJSON(&storeData)
@@ -784,13 +790,64 @@ func (a *App) sendLoadout() error {
 	}
 
 	UploadData := UpdateLoadoutObj{
-		Loadouts:              writeData,
+		Loadouts:       writeData,
+		CurrentLoadout: *currentLoadout,
+	}
+
+	runtime.EventsEmit(a.ctx, "on_loadout_update", UploadData)
+
+	return nil
+
+}
+
+func (a *App) GetRandomLoadout() UpdateRandomObj {
+
+	err := a.sendRandomLoadout()
+	if err != nil {
+		fmt.Println("Error getting random loadout,", err)
+	}
+
+	return UpdateRandomObj{}
+
+}
+
+func (a *App) sendRandomLoadout() error {
+
+	writeData := map[string]SavedLoadout{}
+	err := loadoutStore.readJSON(&writeData)
+	if err != nil {
+		return err
+	}
+
+	localPlayer, err := a.valorantAPIContext.GetLocalPlayerContext()
+	if err != nil {
+		return err
+	}
+
+	currentLoadout, err := a.valorantAPIContext.GetAccountLoadout(localPlayer)
+	if err != nil {
+		return err
+	}
+
+	storeData := SettingsStoreData{}
+	err = settingsStore.readJSON(&storeData)
+	if err != nil {
+		fmt.Println("Settings Store Error:", err)
+		return err
+	}
+
+	if storeData.RandomSelectedWeapons == nil {
+		storeData.RandomSelectedWeapons = map[string]bool{}
+	}
+
+	UploadData := UpdateRandomObj{
 		CurrentLoadout:        *currentLoadout,
+		RandomLoadout:         RandomLoadout,
 		RandomWeaponsSelected: storeData.RandomSelectedWeapons,
 		IsRandomSelected:      storeData.IsRandomized,
 	}
 
-	runtime.EventsEmit(a.ctx, "on_loadout_update", UploadData)
+	runtime.EventsEmit(a.ctx, "on_random_update", UploadData)
 
 	return nil
 
@@ -962,13 +1019,52 @@ func (a *App) randomizeLoadout() error {
 		fmt.Println("Set Account Loadout Error", err, stack.Trace())
 		return err
 	}
-	a.GetLoadouts()
+	a.GetRandomLoadout()
 
 	return nil
 
 }
 
-func (a *App) LoadSavedLoadout(name string, isRandom bool) error {
+func (a *App) LoadRandomLoadout(isRandom bool) error {
+
+	fmt.Println("Setting random loadout..")
+
+	storeData := SettingsStoreData{}
+	err := settingsStore.readJSON(&storeData)
+	if err != nil {
+		fmt.Println("Read Settings Error", err, stack.Trace())
+		return err
+	}
+
+	storeData.IsRandomized = isRandom
+
+	err = settingsStore.writeJSON(storeData)
+	if err != nil {
+		fmt.Println("Write Settings Error", err, stack.Trace())
+		return err
+	}
+
+	// Set loadout to random weapons based on schema
+
+	if isRandom {
+
+		// Enable random
+
+		a.randomizeLoadout()
+
+	} else {
+
+		// Disable random
+
+	}
+
+	a.GetRandomLoadout()
+
+	return nil
+
+}
+
+func (a *App) LoadSavedLoadout(name string) error {
 
 	fmt.Println("Loading loadout.. '" + name + "'")
 
@@ -997,45 +1093,10 @@ func (a *App) LoadSavedLoadout(name string, isRandom bool) error {
 	data.LoadoutData.Identity.Incognito = currentLoadout.Identity.Incognito
 	data.LoadoutData.Identity.PreferredLevelBorderID = currentLoadout.Identity.PreferredLevelBorderID
 
-	storeData := SettingsStoreData{}
-	err = settingsStore.readJSON(&storeData)
+	err = a.valorantAPIContext.SetAccountLoadout(data.LoadoutData, localPlayer)
 	if err != nil {
-		fmt.Println("Read Settings Error", err, stack.Trace())
+		fmt.Println("Set Account Loadout Error", err, stack.Trace())
 		return err
-	}
-
-	storeData.IsRandomized = isRandom
-
-	err = settingsStore.writeJSON(storeData)
-	if err != nil {
-		fmt.Println("Write Settings Error", err, stack.Trace())
-		return err
-	}
-
-	if name != "Random" {
-
-		err = a.valorantAPIContext.SetAccountLoadout(data.LoadoutData, localPlayer)
-		if err != nil {
-			fmt.Println("Set Account Loadout Error", err, stack.Trace())
-			return err
-		}
-
-	} else {
-
-		// Set loadout to random weapons based on schema
-
-		if isRandom {
-
-			// Enable random
-
-			a.randomizeLoadout()
-
-		} else {
-
-			// Disable random
-
-		}
-
 	}
 
 	a.GetLoadouts()

@@ -20,6 +20,7 @@
   import Settings from './components/settings.svelte';
   import Matches from './components/matches.svelte';
   import Loadouts from './components/loadouts.svelte';
+  import Randomizer from './components/randomizer.svelte';
     
   interface ClientUpdate {
     isLoaded: boolean;
@@ -67,7 +68,7 @@
     settings: Menu;
     matchs: Menu;
     loadouts: Menu;
-    history: Menu;
+    randomizer: Menu;
     endpoints: Menu;
   }
 
@@ -108,8 +109,8 @@
       svg: LoadoutsIcon,
       color: {r: 201, g: 114, b: 46 },
     },
-    history: {
-      layout: Settings,
+    randomizer: {
+      layout: Randomizer,
       windowSize: {
         width: 650,
         height: 400
@@ -245,8 +246,8 @@
         </button>
       
         <!-- History Button -->
-        <button class="normal-button {clientUpdate.isLoaded ? '' : 'tray-inactive'} {CurrentActiveMenu == Menus.history ? 'active' : ''}" on:click={() => changeLayout(Menus.history)}>
-          <div class="settings-svg"><svelte:component this={Menus.history.svg} /></div>
+        <button class="normal-button {clientUpdate.isLoaded ? '' : 'tray-inactive'} {CurrentActiveMenu == Menus.randomizer ? 'active' : ''}" on:click={() => changeLayout(Menus.randomizer)}>
+          <div class="settings-svg"><svelte:component this={Menus.randomizer.svg} /></div>
         </button>
       
         <!-- Endpoints Button -->

@@ -3,7 +3,7 @@
     import { onMount } from 'svelte';
     import { EventsOn, EventsOff } from '../../wailsjs/runtime';
     import { valorantapi, main } from '../../wailsjs/go/models';
-    import { SaveCurrentLoadout, DeleteSavedLoadout, LoadSavedLoadout, GetLoadouts, AddWeaponsToBeRandomized } from '../../wailsjs/go/main/App';
+    import { SaveCurrentLoadout, DeleteSavedLoadout, LoadSavedLoadout, GetLoadouts, AddWeaponsToBeRandomized, GetRandomLoadout, LoadRandomLoadout } from '../../wailsjs/go/main/App';
     
     import { 
         sizeAnimation,
@@ -36,132 +36,80 @@
 
         if (selectedLoadout != null) {
             loadoutSelected = selectedLoadout
-        } else {
-            loadoutSelected = null
         }
 
     }
     
     function resize() {
 
-        if (transferNode != null ) {
-            if ( isLoadoutShown ) {
-
-                const size = getWorkingAreaSize()
-
-                sizeAnimation(
-                    size.x,
-                    size.y,
-                    1000,
-                    700
-                )
-
-                return
-
-            }
-        }
-
         const size = getWorkingAreaSize()
 
         sizeAnimation(
             size.x,
             size.y,
-            600,
-            400
+            1000,
+            700
         )
 
     }
 
     let error = ""
 
-    function saveLoadout(name: string) {
-
-        if ( name.length <= 0 ) {
-            error = "Name must have atleast 1 characters"
-            console.log(error)
-            return
-        }
-
-        error = ""
-
-        SaveCurrentLoadout(name)
-
-    }
-
-    function deleteLoadout(name: string) {
-
-        DeleteSavedLoadout(name)
-
-    }
-
-    function loadLoadout(name: string, isRandom: boolean) {
+    function loadRandom(isRandom: boolean) {
 
         error = "Loaded successfully!"
-        LoadSavedLoadout(name)
+        LoadRandomLoadout(isRandom)
 
-    }
-
-    function loadoutEqual(loadout1: LoadoutItem, loadout2: valorantapi.ValorantLocalLoadout ): boolean {
-
-        if ( !loadout1 || !loadout2 ) {
-            // Loadouts are not valid
-            return false;
-        }
-
-        let GunsEqual = true
-
-        for (let index = 0; index < loadout1.value.LoadoutData.Guns.length; index++) {
-            const element1 = loadout1.value.LoadoutData.Guns[index];
-            const element2 = loadout2.Guns[index];
-            if (element1.ChromaID != element2.ChromaID) {
-                GunsEqual = false
-            }
-        }
-
-        let ExpressionsEqual = true
-
-        for (let index = 0; index < loadout1.value.LoadoutData.ActiveExpressions.length; index++) {
-            const element1 = loadout1.value.LoadoutData.ActiveExpressions[index];
-            const element2 = loadout2.ActiveExpressions[index];
-            if (element1.AssetID != element2.AssetID) {
-                ExpressionsEqual = false
-            }
-        }
-
-        return GunsEqual && ExpressionsEqual
-         
     }
     
     type LoadoutItem = { key: string; value: main.SavedLoadout };
-    var loadoutList: LoadoutItem[] = [];
+    var randomLoadout: main.SavedLoadout
     var CurrentLoadout: valorantapi.ValorantLocalLoadout
+    let isRandomEnabled: boolean = false;
+    let randomizedItems: Record<string, boolean>;
+
+    function setItemToRandomize( ID: string ) {
+
+        if (randomizedItems[ID] == null) {
+            randomizedItems[ID] = true
+        } else {
+            randomizedItems[ID] = !randomizedItems[ID]
+        }
+
+        AddWeaponsToBeRandomized( randomizedItems)
+
+    }
 
     onMount( () => {
 
         resize()
 
-        EventsOn( "on_loadout_update", ( data: main.UpdateLoadoutObj ) => {
+        EventsOn( "on_random_update", ( data: main.UpdateRandomObj ) => {
 
             CurrentLoadout = data.CurrentLoadout
+            randomizedItems = data.RandomWeaponsSelected
 
             console.log("Current",CurrentLoadout)
 
-            loadoutList = Object.entries(data.Loadouts).map( ([key, value]) => {
-                return {
-                    key: key,
-                    value: value
-                }
-            })
+            data.RandomLoadout.LoadoutData.Identity.PreferredLevelBorderID = CurrentLoadout.Identity.PreferredLevelBorderID
+
+            data.RandomLoadout.LoadoutData.Identity.PlayerTitleID = "random"
+            data.RandomLoadout.NameLookup[data.RandomLoadout.LoadoutData.Identity.PlayerTitleID] = "Random Title"
+
+            data.RandomLoadout.LoadoutData.ActiveExpressions = CurrentLoadout.ActiveExpressions
+
+            randomLoadout = data.RandomLoadout
+            isRandomEnabled = data.IsRandomSelected
 
             console.log(data)
 
         })
 
-        GetLoadouts()
+        GetRandomLoadout()
 
         return () => {
 
-            EventsOff('on_loadout_update');
+            EventsOff('on_random_update');
 
         }
 
@@ -181,121 +129,75 @@
                     <div class="container-text">{error}</div>
                 {/if}
                 {#if error == ""}
-                    <div class="container-text">Loadouts</div>
-                {/if}
-                <textarea bind:value={loadoutNameTextarea} placeholder="Loadout Name" class="container-textarea"></textarea>
-                <button on:click={ () => {saveLoadout(loadoutNameTextarea)}}>Save</button>
-            </bar>
-            
-            <div class="loadout-list">
-                {#each loadoutList as loadout (loadout.key) }
-                    <div 
-                        class="loadout-item {loadoutEqual( loadout, CurrentLoadout) ? "selected" : ""}" 
-                        on:click={ () => { showLoadout(true, loadout) }}
-                        on:keyup={ () => { showLoadout( true, loadout )}}
-                    >
-                        <img src="https://media.valorant-api.com/playercards/{loadout.value.LoadoutData.Identity.PlayerCardID}/displayicon.png" alt="Player Card" class="loadout-img"/>
-                        <div class="card-holder">
-
-                            <div class="vertical-devider"></div>
-
-                            <card class="card">
-                                <top>Loadout Name</top>
-                                <div class="horizonal-devider"></div>
-                                <bottom>{loadout.key}</bottom>
-                            </card>
-                            
-                            <div class="vertical-devider"></div>
-
-                        </div>
-                    </div>
-                {/each}
-            </div>
-
-        </div>
-
-        <div class="container-side">
-            
-            {#if loadoutSelected != null}
-            <bar>
-                {#if error != ""}
-                    <div class="container-text">{error}</div>
-                {/if}
-                {#if error == ""}
-                    <div class="container-text">Loadouts</div>
+                    <div class="container-text">Skin Randomizer</div>
                 {/if}
                 {#if loadoutSelected?.key != null}
                     <div class="container-title">{loadoutSelected.key}</div>
                 {/if}
-                <button on:click={ () => {loadLoadout(loadoutSelected?.key, false)}}>Load Loadout</button>
-                <button on:click={ () => {
-                    deleteLoadout(loadoutSelected.key)
-                    showLoadout(false, null)
-                }
-                }>Delete</button>
-                <button on:click={ () => {showLoadout(false, null)}}>Back</button>
+                <button class="{ isRandomEnabled ? "selected" : "" }" on:click={ () => {loadRandom(!isRandomEnabled )}}>{ isRandomEnabled ? "Disable" : "Enable" } Random</button>
             </bar>
+            
+            {#if randomLoadout != null}
 
-                <div class="loadout-container">
-                    
-                    <div class="profile-card">
-                        <img class="player-card" src="https://media.valorant-api.com/playercards/{loadoutSelected.value.LoadoutData.Identity.PlayerCardID}/displayicon.png" alt="Player card"/>
-                        <div class="expression_container">
-                            <div>Title</div>
-                            <div class="player-title-container">
-                                <div class="player-title">{loadoutSelected.value.NameLookup[loadoutSelected.value.LoadoutData.Identity.PlayerTitleID]}</div>
-                            </div>
-                        </div>
-                        <div class="expression_container">
-                            <div>Expressions</div>
+            <div class="loadout-container">
+                
+                <div class="profile-card">
+                    <img class="player-card" src="https://media.valorant-api.com/playercards/{randomLoadout?.LoadoutData?.Identity?.PlayerCardID}/displayicon.png" alt="Player card"/>
+                    <div class="expression_container">
+                        <div>Title</div>
+                    <div class="player-title-container">
+                        <div class="player-title">{randomLoadout?.NameLookup[randomLoadout?.LoadoutData?.Identity.PlayerTitleID]}</div>
+                    </div>
+                    </div>
+                    <div class="expression_container">
+                        <div>Expressions</div>
 
-                            <div class="expressions">
-
-                                {#each loadoutSelected.value.LoadoutData.ActiveExpressions as item (item.AssetID)}
-
-                                    {#if item.TypeID == "d5f120f8-ff8c-4aac-92ea-f2b5acbe9475"}
-                                        <img 
-                                            class="expression" 
-                                            src="https://media.valorant-api.com/sprays/{item.AssetID}/animation.png"
-                                            {...{ onerror: `this.src='https://media.valorant-api.com/sprays/${item.AssetID}/fulltransparenticon.png'` }}
-                                            alt="Spray"
-                                        />
-                                    {/if}
-                                    {#if item.TypeID == "03a572de-4234-31ed-d344-ababa488f981"}
-                                        <img 
-                                            class="expression" 
-                                            src="https://media.valorant-api.com/flex/{item.AssetID}/displayicon.png" 
-                                            alt="Flex"
-                                        />
-                                    {/if}
-
-                                {/each}
-                                
-                            </div>
-
+                        <div class="expressions">
+                            {#each randomLoadout?.LoadoutData?.ActiveExpressions as item (item.AssetID)}
+                                {#if item.TypeID == "d5f120f8-ff8c-4aac-92ea-f2b5acbe9475"}
+                                    <img 
+                                        class="expression" 
+                                        src="https://media.valorant-api.com/sprays/{item.AssetID}/animation.png"
+                                        {...{ onerror: `this.src='https://media.valorant-api.com/sprays/${item.AssetID}/fulltransparenticon.png'` }}
+                                        alt="Spray"
+                                    />
+                                {/if}
+                                {#if item.TypeID == "03a572de-4234-31ed-d344-ababa488f981"}
+                                    <img 
+                                        class="expression" 
+                                        src="https://media.valorant-api.com/flex/{item.AssetID}/displayicon.png" 
+                                        alt="Flex"
+                                    />
+                                {/if}
+                            {/each}
                         </div>
 
                     </div>
+                </div>
 
-                    <div class="skin_loadout">
-                    
-                        {#each loadoutSelected.value.LoadoutData.Guns as item (item.ID)}
-                            
-                            <div class="skin_loadout_item">
+                <div class="skin_loadout">
+                
+                    {#each CurrentLoadout?.Guns as item, index (item.ID)}
+                        
+                        <div 
+                            class="skin_loadout_item { randomizedItems[item.ID] ? "selected" : "" }"
+                            on:click={ () => { setItemToRandomize(item.ID) }}
+                            on:keyup={ () => { setItemToRandomize(item.ID) }}
+                        >   
 
-                                <div class="loadout_item_text">{loadoutSelected.value.NameLookup[item.ID]}</div>
-                                <img src="https://media.valorant-api.com/weaponskinchromas/{item.ChromaID}/fullrender.png" alt="{item.ID}"/>
+                            <div class="loadout_item_text">{randomLoadout.NameLookup[item.ID]}</div>
+                            <img src="https://media.valorant-api.com/weaponskinchromas/{item.ChromaID}/fullrender.png" alt="{item.ID}"/>
 
-                            </div>
+                        </div>
 
-                        {/each}
-
-                    </div>
+                    {/each}
 
                 </div>
 
-            {/if}
+            </div>
 
+            {/if}
+            
         </div>
 
     </div>
@@ -457,7 +359,7 @@
     .container-side bar {
         display: flex;
         gap: 0.25rem;
-        margin-top: 0.15rem;
+        margin-top: 0.25rem;
 
         justify-content: end;
         align-items: center;
@@ -466,7 +368,7 @@
         height: 1.5rem;
 
         margin-left: 1%;
-        margin-bottom: 0.5rem;
+        margin-bottom: 1rem;
 
     }
 
@@ -601,41 +503,21 @@
         font-family: 'DMSans', sans-serif;
     }
 
-    .card top {
-        
-        font-weight: 700;
-        font-size: 0.8rem;
-
-        color: hsla(180, 67%, 99%, 0.5);
-
-    }
-
-    .card bottom {
-        
-        font-weight: 300;
-        font-size: 1rem;
-
-        align-self: center;
-
-        color: hsla(180, 67%, 99%, 0.9);
-
-    }
-
     .container {
 
         position: absolute;
-        display: flex;
 
-        width: 200%;
+        width: 100%;
         height: 100%;
+
+        display: flex;
         
         transition: transform 300ms cubic-bezier(0.87, 0, 0.13, 1);
 
     }
 
     .container-side {
-        flex: 1;
-        width: 50%;
+        width: 100%;
         height: 100%;
     }
 
@@ -647,16 +529,12 @@
         
         flex-direction: column;
 
+        justify-content: center;
         align-items: center;
 
         gap: 0.25rem;
 
-        overflow-y: scroll;
-        height: calc(360px - 2rem);
-    }
-
-    ::-webkit-scrollbar {
-        display: none;
+        height: fit-content;
     }
 
     .loadout-item {

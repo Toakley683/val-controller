@@ -21,9 +21,13 @@ export function GetLoadouts():Promise<main.UpdateLoadoutObj>;
 
 export function GetMatch():Promise<valorantapi.MatchData>;
 
+export function GetRandomLoadout():Promise<main.UpdateRandomObj>;
+
 export function GetSettings():Promise<Record<string, boolean>>;
 
-export function LoadSavedLoadout(arg1:string,arg2:boolean):Promise<void>;
+export function LoadRandomLoadout(arg1:boolean):Promise<void>;
+
+export function LoadSavedLoadout(arg1:string):Promise<void>;
 
 export function MinimizeWindow():Promise<void>;
 
