@@ -15,6 +15,29 @@
     let isLoadoutShown: boolean = false;
 
     let loadoutSelected: LoadoutItem
+
+    const BuddyOffsets = {
+        "63e6c2b6-4a8e-869c-3d4c-e38355226584": 70,
+        "55d8a0f4-4274-ca67-fe2c-06ab45efdf58": 50,
+        "9c82e19d-4575-0200-1a81-3eacf00cf872": 25,
+        "ae3de142-4d85-2547-dd26-4e90bed35cf7": 35,
+        "ee8e8d15-496b-07ac-e5f6-8fae5d4c7b1a": 45,
+        "ec845bf4-4f79-ddda-a3da-0db3774b2794": 30,
+        "910be174-449b-c412-ab22-d0873436b21b": 70,
+        "44d4e95c-4157-0037-81b2-17841bf2e8e3": -5,
+        "29a0cfab-485b-f5d5-779a-b59f85e204a8": -5,
+        "1baa85b4-4c70-1284-64bb-6481dfc3bb4e": 10,
+        "e336c6b8-418d-9340-d77f-7a9e4cfe0702": -5,
+        "42da8ccc-40d5-affc-beec-15aa47b42eda": 25,
+        "a03b24d3-4319-996d-0f8c-94bbfba1dfc7": 75,
+        "4ade7faa-4cf1-8376-95ef-39884480959b": 65,
+        "c4883e50-4494-202c-3ec3-6b8a9284f00b": 85,
+        "462080d1-4035-2937-7c09-27aa2a5c27a7": 25,
+        "f7e1b454-4ad4-1063-ec0a-159e56b58941": 5,
+        "2f59173c-4bed-b6c3-2191-dea9b58be9c7": 0,
+        "5f0aaf7a-4289-3998-d5ff-eb9a5cf7ef5c": 85,
+        "410b2e0b-4ceb-1321-1727-20858f7f3477": 5,
+    };
     
     function showLoadout( isShown: boolean, selectedLoadout: LoadoutItem ) {
         
@@ -184,9 +207,17 @@
                             on:click={ () => { setItemToRandomize(item.ID) }}
                             on:keyup={ () => { setItemToRandomize(item.ID) }}
                         >   
-
                             <div class="loadout_item_text">{randomLoadout.NameLookup[item.ID]}</div>
-                            <img src="https://media.valorant-api.com/weaponskinchromas/{item.ChromaID}/fullrender.png" alt="{item.ID}"/>
+
+                            <div class="image-container">
+
+                                <img src="https://media.valorant-api.com/weaponskinchromas/{item.ChromaID}/fullrender.png" alt="{item.ID}">
+                                
+                                {#if item.CharmID}
+                                <img class="loadout_item_buddy" style="left: {BuddyOffsets[item?.ID] ?? 0}px" src="https://media.valorant-api.com/buddies/{item.CharmID}/displayicon.png" alt="{item.CharmID}"/>
+                                {/if}
+                                
+                            </div>
 
                         </div>
 
@@ -325,6 +356,7 @@
         display: flex;
         flex-direction: column;
         align-items: center;
+        justify-content: end;
 
         user-select: none;
 
@@ -337,13 +369,38 @@
         background-color: hsl(0, 0%, 10%);
         box-shadow: 0px 0px 0px 1px hsla(180, 67%, 99%, 0.5);
     }
+    
+    .image-container {
+        position: relative;
+        display: inline-block;
+    }
 
     .skin_loadout_item img {
         height: 3rem;
-        width: 225px;
+        width: auto;
         object-fit: contain;
         margin-bottom: 0.25rem;
     }
+
+    .loadout_item_buddy {
+
+        position: absolute;
+        animation: wobble 2s ease-in-out infinite;
+        
+        top: 13px;
+
+        width: 2.5rem !important;
+        height: auto !important;
+        aspect-ratio: 1;
+
+    }
+    
+    @keyframes wobble {
+      0%   { transform: rotate(-5deg); }
+      50%  { transform: rotate(5deg); }
+      100% { transform: rotate(-5deg); }
+    }
+
 
     .loadout_item_text {
         color: hsla(180, 67%, 99%, 0.7);
@@ -355,7 +412,6 @@
         overflow: hidden;
         width: 100%;
     }
-
     .container-side bar {
         display: flex;
         gap: 0.25rem;

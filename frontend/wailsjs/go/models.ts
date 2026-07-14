@@ -105,19 +105,107 @@ export namespace main {
 
 export namespace valorantapi {
 	
-	export class valorantItemLoadout {
-	    DisplayIcon: string;
-	    DisplayName: string;
+	export class ValorantLocalLoadoutIdentity {
+	    PlayerCardID: string;
+	    PlayerTitleID: string;
+	    AccountLevel: number;
+	    PreferredLevelBorderID: string;
+	    Incognito: boolean;
+	    HideAccountLevel: boolean;
 	
 	    static createFrom(source: any = {}) {
-	        return new valorantItemLoadout(source);
+	        return new ValorantLocalLoadoutIdentity(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.DisplayIcon = source["DisplayIcon"];
-	        this.DisplayName = source["DisplayName"];
+	        this.PlayerCardID = source["PlayerCardID"];
+	        this.PlayerTitleID = source["PlayerTitleID"];
+	        this.AccountLevel = source["AccountLevel"];
+	        this.PreferredLevelBorderID = source["PreferredLevelBorderID"];
+	        this.Incognito = source["Incognito"];
+	        this.HideAccountLevel = source["HideAccountLevel"];
 	    }
+	}
+	export class ValorantLocalExpression {
+	    TypeID: string;
+	    AssetID: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ValorantLocalExpression(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.TypeID = source["TypeID"];
+	        this.AssetID = source["AssetID"];
+	    }
+	}
+	export class ValorantLocalLoadoutGuns {
+	    SkinName: string;
+	    ID: string;
+	    SkinID: string;
+	    SkinLevelID: string;
+	    ChromaID: string;
+	    CharmInstanceID?: string;
+	    CharmID?: string;
+	    CharmLevelID?: string;
+	    Attachments: any[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ValorantLocalLoadoutGuns(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.SkinName = source["SkinName"];
+	        this.ID = source["ID"];
+	        this.SkinID = source["SkinID"];
+	        this.SkinLevelID = source["SkinLevelID"];
+	        this.ChromaID = source["ChromaID"];
+	        this.CharmInstanceID = source["CharmInstanceID"];
+	        this.CharmID = source["CharmID"];
+	        this.CharmLevelID = source["CharmLevelID"];
+	        this.Attachments = source["Attachments"];
+	    }
+	}
+	export class ValorantLocalLoadout {
+	    Subject: string;
+	    Version: number;
+	    Guns: ValorantLocalLoadoutGuns[];
+	    ActiveExpressions: ValorantLocalExpression[];
+	    Identity: ValorantLocalLoadoutIdentity;
+	
+	    static createFrom(source: any = {}) {
+	        return new ValorantLocalLoadout(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.Subject = source["Subject"];
+	        this.Version = source["Version"];
+	        this.Guns = this.convertValues(source["Guns"], ValorantLocalLoadoutGuns);
+	        this.ActiveExpressions = this.convertValues(source["ActiveExpressions"], ValorantLocalExpression);
+	        this.Identity = this.convertValues(source["Identity"], ValorantLocalLoadoutIdentity);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class PlayerIdentity {
 	    Subject: string;
@@ -164,7 +252,7 @@ export namespace valorantapi {
 	    PlayerIdentity: PlayerIdentity;
 	    IsCaptain: boolean;
 	    PlatformType: string;
-	    Items: Record<string, valorantItemLoadout>;
+	    Items: ValorantLocalLoadout;
 	
 	    static createFrom(source: any = {}) {
 	        return new valorantMatchTeamPlayer(source);
@@ -188,7 +276,7 @@ export namespace valorantapi {
 	        this.PlayerIdentity = this.convertValues(source["PlayerIdentity"], PlayerIdentity);
 	        this.IsCaptain = source["IsCaptain"];
 	        this.PlatformType = source["PlatformType"];
-	        this.Items = this.convertValues(source["Items"], valorantItemLoadout, true);
+	        this.Items = this.convertValues(source["Items"], ValorantLocalLoadout);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -282,106 +370,7 @@ export namespace valorantapi {
 		}
 	}
 	
-	export class ValorantLocalExpression {
-	    TypeID: string;
-	    AssetID: string;
 	
-	    static createFrom(source: any = {}) {
-	        return new ValorantLocalExpression(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.TypeID = source["TypeID"];
-	        this.AssetID = source["AssetID"];
-	    }
-	}
-	export class ValorantLocalLoadoutIdentity {
-	    PlayerCardID: string;
-	    PlayerTitleID: string;
-	    AccountLevel: number;
-	    PreferredLevelBorderID: string;
-	    Incognito: boolean;
-	    HideAccountLevel: boolean;
-	
-	    static createFrom(source: any = {}) {
-	        return new ValorantLocalLoadoutIdentity(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.PlayerCardID = source["PlayerCardID"];
-	        this.PlayerTitleID = source["PlayerTitleID"];
-	        this.AccountLevel = source["AccountLevel"];
-	        this.PreferredLevelBorderID = source["PreferredLevelBorderID"];
-	        this.Incognito = source["Incognito"];
-	        this.HideAccountLevel = source["HideAccountLevel"];
-	    }
-	}
-	export class ValorantLocalLoadoutGuns {
-	    ID: string;
-	    SkinID: string;
-	    SkinLevelID: string;
-	    ChromaID: string;
-	    CharmInstanceID?: string;
-	    CharmID?: string;
-	    CharmLevelID?: string;
-	    Attachments: any[];
-	
-	    static createFrom(source: any = {}) {
-	        return new ValorantLocalLoadoutGuns(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.ID = source["ID"];
-	        this.SkinID = source["SkinID"];
-	        this.SkinLevelID = source["SkinLevelID"];
-	        this.ChromaID = source["ChromaID"];
-	        this.CharmInstanceID = source["CharmInstanceID"];
-	        this.CharmID = source["CharmID"];
-	        this.CharmLevelID = source["CharmLevelID"];
-	        this.Attachments = source["Attachments"];
-	    }
-	}
-	export class ValorantLocalLoadout {
-	    Subject: string;
-	    Version: number;
-	    Guns: ValorantLocalLoadoutGuns[];
-	    ActiveExpressions: ValorantLocalExpression[];
-	    Identity: ValorantLocalLoadoutIdentity;
-	
-	    static createFrom(source: any = {}) {
-	        return new ValorantLocalLoadout(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.Subject = source["Subject"];
-	        this.Version = source["Version"];
-	        this.Guns = this.convertValues(source["Guns"], ValorantLocalLoadoutGuns);
-	        this.ActiveExpressions = this.convertValues(source["ActiveExpressions"], ValorantLocalExpression);
-	        this.Identity = this.convertValues(source["Identity"], ValorantLocalLoadoutIdentity);
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
 	
 	
 	

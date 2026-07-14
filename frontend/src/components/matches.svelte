@@ -19,6 +19,29 @@
     let isInventoryShown: boolean = false;
     let selectedPlayer: valorantapi.valorantMatchTeamPlayer;
 
+    const BuddyOffsets = {
+        "63e6c2b6-4a8e-869c-3d4c-e38355226584": 70,
+        "55d8a0f4-4274-ca67-fe2c-06ab45efdf58": 50,
+        "9c82e19d-4575-0200-1a81-3eacf00cf872": 25,
+        "ae3de142-4d85-2547-dd26-4e90bed35cf7": 35,
+        "ee8e8d15-496b-07ac-e5f6-8fae5d4c7b1a": 45,
+        "ec845bf4-4f79-ddda-a3da-0db3774b2794": 30,
+        "910be174-449b-c412-ab22-d0873436b21b": 45,
+        "44d4e95c-4157-0037-81b2-17841bf2e8e3": -5,
+        "29a0cfab-485b-f5d5-779a-b59f85e204a8": -5,
+        "1baa85b4-4c70-1284-64bb-6481dfc3bb4e": 10,
+        "e336c6b8-418d-9340-d77f-7a9e4cfe0702": -5,
+        "42da8ccc-40d5-affc-beec-15aa47b42eda": 25,
+        "a03b24d3-4319-996d-0f8c-94bbfba1dfc7": 75,
+        "4ade7faa-4cf1-8376-95ef-39884480959b": 65,
+        "c4883e50-4494-202c-3ec3-6b8a9284f00b": 85,
+        "462080d1-4035-2937-7c09-27aa2a5c27a7": 25,
+        "f7e1b454-4ad4-1063-ec0a-159e56b58941": 5,
+        "2f59173c-4bed-b6c3-2191-dea9b58be9c7": 0,
+        "5f0aaf7a-4289-3998-d5ff-eb9a5cf7ef5c": 85,
+        "410b2e0b-4ceb-1321-1727-20858f7f3477": 5,
+    };
+
     let TeamLookup = {}
     
     function objectToArray<T>(obj: Record<string, T>): T[] {
@@ -55,31 +78,11 @@
 
             hasBeenUpdated = true
 
-            // Add fake player
-
             console.log(data)
 
             maxPlayerPerSize = 0
 
             MatchData = data
-
-            if (data.AllyTeam?.Players?.length > 0) {
-
-                // Adds fake players for debug purposes
-
-                for (let index = 0; index < 0; index++) {
-
-                    const copiedPlayer = JSON.parse(JSON.stringify(data.AllyTeam.Players[0]));
-                    copiedPlayer.Subject = "Test" + index;
-                    data.AllyTeam.Players.push(copiedPlayer);
-                    
-                }
-                
-                // Copies players from Ally Team to Enemy team for debug purposes
-
-                //data.EnemyTeam.Players = data.AllyTeam.Players
-
-            }
 
             TeamLookup = {}
 
@@ -526,6 +529,38 @@
                 </card>
                 
                 <div class="vertical-devider"></div>
+                
+
+                <div class="expression_container">
+                        <top>Expressions</top>
+                        <div class="horizonal-devider"></div>
+                        
+                        <div class="expressions">
+
+                        {#each selectedPlayer.Items.ActiveExpressions as item (item.AssetID)}
+
+                            {#if item.TypeID == "d5f120f8-ff8c-4aac-92ea-f2b5acbe9475"}
+                                <img 
+                                    class="expression" 
+                                    src="https://media.valorant-api.com/sprays/{item.AssetID}/animation.png"
+                                    {...{ onerror: `this.src='https://media.valorant-api.com/sprays/${item.AssetID}/fulltransparenticon.png'` }}
+                                    alt="Spray"
+                                />
+                            {/if}
+                            {#if item.TypeID == "03a572de-4234-31ed-d344-ababa488f981"}
+                                <img 
+                                    class="expression" 
+                                    src="https://media.valorant-api.com/flex/{item.AssetID}/displayicon.png" 
+                                    alt="Flex"
+                                />
+                            {/if}
+
+                        {/each}
+                        
+                    </div>
+                        
+                </div>
+
             </profile_card>
 
             <!-- Match History -->
@@ -533,13 +568,22 @@
             <!-- Skin Loadout -->
 
             <div class="skin_loadout">
-            
-                {#each objectToArray(selectedPlayer.Items) as item (item.DisplayName)}
+                
+                {#each selectedPlayer.Items.Guns as item, index (item.ID)}
                 
                 <div class="skin_loadout_item">
 
-                    <div class="loadout_item_text">{item.DisplayName}</div>
-                    <img src="{item.DisplayIcon}" alt="{item.DisplayName}"/>
+                    <div class="loadout_item_text">{item.SkinName}</div>
+
+                    <div class="image-container">
+
+                        <img src="https://media.valorant-api.com/weaponskinchromas/{item.ChromaID}/fullrender.png" alt="{item.SkinName}">
+                        
+                        {#if item.CharmID}
+                        <img class="loadout_item_buddy" style="left: {BuddyOffsets[item?.ID] ?? 0}px" src="https://media.valorant-api.com/buddies/{item.CharmID}/displayicon.png" alt="{item.CharmID}"/>
+                        {/if}
+                        
+                    </div>
 
                 </div>
 
@@ -576,15 +620,13 @@
     }
 
     .skin_loadout {
-        margin-top: 2rem;
-        width: 100%;
-        height: calc((78px + 0.6rem) * 4);
+        margin-left: 2.5%;
+        width: 95%;
+        height: 100%;
 
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(230px, max-content));
         gap: 0.4rem;
-
-        overflow-y: scroll;
 
         justify-content: center;
         padding-top: 1rem;
@@ -615,12 +657,36 @@
         background-color: hsl(0, 0%, 10%);
         box-shadow: 0px 0px 0px 1px hsla(180, 67%, 99%, 0.5);
     }
+    
+    .image-container {
+        position: relative;
+        display: inline-block;
+    }
 
     .skin_loadout_item img {
-        height: 3rem;
-        width: 225px;
+        height: 2.5rem;
+        width: auto;
         object-fit: contain;
         margin-bottom: 0.25rem;
+    }
+
+    .loadout_item_buddy {
+
+        position: absolute;
+        animation: wobble 2s ease-in-out infinite;
+        
+        top: 10px;
+
+        width: 2rem !important;
+        height: auto !important;
+        aspect-ratio: 1;
+
+    }
+    
+    @keyframes wobble {
+      0%   { transform: rotate(-5deg); }
+      50%  { transform: rotate(5deg); }
+      100% { transform: rotate(-5deg); }
     }
 
     .loadout_item_text {
@@ -671,6 +737,38 @@
         background-color: hsl(0, 0%, 10%);
         box-shadow: 0 2px 0.5rem rgba(0, 0, 0, 0.3);
     } 
+    
+    .expression_container {
+        display: row;
+        justify-content: center;
+
+        color: hsla(180, 67%, 99%, 0.7);
+        font-weight: 700;
+        font-family: 'DMSans', sans-serif;
+    }
+
+    .expressions {
+
+        user-select: none;
+
+        background-color: hsl(0, 0%, 10%);
+        box-shadow: 0px 0px 0px 1px hsla(180, 67%, 99%, 0.5);
+        height: 2rem;
+        width: fit-content;
+        padding: 0.25rem;
+        border-radius: 1rem;
+
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .expression {
+        width: 2rem !important;
+        height: 2rem !important;
+
+        border-radius: 1rem;
+    }
 
     .inventory-side profile_card {
         display: flex;
@@ -684,7 +782,7 @@
         width: 100%;
 
         margin-top: 1rem;
-        height: 5rem;
+        height: 4rem;
 
         font-weight: 700;
         font-size: 1rem;

@@ -273,11 +273,6 @@ func (context ValorantAPIContext) getMainGameData(MatchID string) (*valorantMain
 
 }
 
-type valorantItemLoadout struct {
-	DisplayIcon string
-	DisplayName string
-}
-
 type valorantMatchTeamPlayer struct {
 	Subject                 string  `json:"Subject"`
 	CharacterID             AgentID `json:"CharacterID"`
@@ -290,13 +285,12 @@ type valorantMatchTeamPlayer struct {
 	CurrentRankDisplayIcon  string
 	LastMatchPartyID        string
 	MatchesAgo              int64
-	PregamePlayerState      string         `json:"PregamePlayerState"`
-	CompetitiveTier         int            `json:"CompetitiveTier"`
-	PlayerIdentity          PlayerIdentity `json:"PlayerIdentity"`
-	IsCaptain               bool           `json:"IsCaptain"`
-	PlatformType            string         `json:"PlatformType"`
-	//Expressions             map[string]valorantExpression
-	Items map[WeaponID]valorantItemLoadout `json:"Items"`
+	PregamePlayerState      string               `json:"PregamePlayerState"`
+	CompetitiveTier         int                  `json:"CompetitiveTier"`
+	PlayerIdentity          PlayerIdentity       `json:"PlayerIdentity"`
+	IsCaptain               bool                 `json:"IsCaptain"`
+	PlatformType            string               `json:"PlatformType"`
+	Items                   ValorantLocalLoadout `json:"Items"`
 }
 
 type ValorantMatchTeam struct {
@@ -944,37 +938,57 @@ func (context ValorantAPIContext) constructMainGameData(CurrentMatch *ValorantCu
 
 }
 
-func (context ValorantAPIContext) constructItemData(CurrentMatchLoadout *ValorantMatchLoadouts, playerID string) (map[WeaponID]valorantItemLoadout, error) {
+func (context ValorantAPIContext) constructItemData(CurrentMatchLoadout *ValorantMatchLoadouts, playerID string) (ValorantLocalLoadout, error) {
 
-	Items := map[WeaponID]valorantItemLoadout{}
+	Items := ValorantLocalLoadout{}
 
-	for _, v := range CurrentMatchLoadout.Loadouts[playerID].Loadout.Items {
+	Items.Sprays = make([]ValorantLocalExpression, 0)
+	Items.Guns = make([]ValorantLocalLoadoutGuns, 0)
+
+	pLoadout := CurrentMatchLoadout.Loadouts[playerID].Loadout
+
+	for _, v := range pLoadout.Expressions.AESSelections {
+
+		Items.Sprays = append(Items.Sprays, ValorantLocalExpression{
+			TypeID:  v.TypeID,
+			AssetID: v.AssetID,
+		})
+
+	}
+
+	index := 0
+
+	for _, v := range pLoadout.Items {
+
+		index++
+
+		skinData, err := WeaponSkinID(v.Sockets[TypeID("bcef87d6-209b-46c6-8b19-fbe40bd95abc")].Item.ID).GetInformation()
+		if err != nil {
+			return Items, err
+		}
+
+		chromaData, err := WeaponChromaID(v.Sockets[TypeID("3ad1b2b2-acdb-4524-852f-954a76ddae0a")].Item.ID).GetInformation() // Get Skin Chroma
+		if err != nil {
+			return Items, err
+		}
 
 		displayName := ""
-		displayIcon := ""
 
-		data1, err := WeaponSkinID(v.Sockets[TypeID("bcef87d6-209b-46c6-8b19-fbe40bd95abc")].Item.ID).GetInformation()
-		if err != nil {
-			return nil, err
+		if skinData.Data.DisplayName == "" {
+			displayName = chromaData.Data.DisplayName
+		} else {
+			displayName = skinData.Data.DisplayName
 		}
 
-		displayName = data1.Data.DisplayName
-		displayIcon = data1.Data.DisplayIcon
-
-		data2, err := WeaponChromaID(v.Sockets[TypeID("3ad1b2b2-acdb-4524-852f-954a76ddae0a")].Item.ID).GetInformation() // Get Skin Chroma
-		if err != nil {
-			return nil, err
-		}
-
-		displayIcon = data2.Data.FullRender
-		if displayName == "" {
-			displayName = data2.Data.DisplayName
-		}
-
-		Items[v.ID] = valorantItemLoadout{
-			DisplayName: displayName,
-			DisplayIcon: displayIcon,
-		}
+		Items.Guns = append(Items.Guns, ValorantLocalLoadoutGuns{
+			SkinName:     displayName,
+			ID:           v.ID,
+			SkinID:       WeaponSkinID(v.Sockets["bcef87d6-209b-46c6-8b19-fbe40bd95abc"].Item.ID),
+			SkinLevelID:  WeaponSkinLevelID(v.Sockets["e7c63390-eda7-46e0-bb7a-a6abdacd2433"].Item.ID),
+			ChromaID:     WeaponChromaID(v.Sockets["3ad1b2b2-acdb-4524-852f-954a76ddae0a"].Item.ID),
+			CharmID:      v.Sockets["77258665-71d1-4623-bc72-44db9bd5b3b3"].Item.ID,
+			CharmLevelID: v.Sockets["dd3bf334-87f3-40bd-b043-682a57a8dc3a"].Item.ID,
+		})
 
 	}
 

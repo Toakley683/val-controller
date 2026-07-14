@@ -157,6 +157,7 @@ func (context ValorantAPIContext) GetAccountXP(playerContext ValorantPlayerConte
 /* [ URL: 'https://pd.{Shard}.a.pvp.net/personalization/v2/players/{PUUID}/playerloadout' ] */
 
 type ValorantLocalLoadoutGuns struct {
+	SkinName        string
 	ID              WeaponID          `json:"ID"`
 	SkinID          WeaponSkinID      `json:"SkinID"`
 	SkinLevelID     WeaponSkinLevelID `json:"SkinLevelID"`
